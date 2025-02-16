@@ -8,7 +8,7 @@ const bodyParser = require("body-parser");
 // Import models
 const { PositionsModel } = require("./model/PositionsModel");
 const { HoldingsModel } = require("./model/HoldingsModel"); // Ensure this is pointing to the correct file
-// const {OrderModel} = require("./model/OrderModel");
+const {OrderModel} = require("./model/OrderModel");
 
 const port = process.env.PORT || 3002;
 const uri = process.env.MONGO_URL;
@@ -50,6 +50,26 @@ app.get("/allPositions", async (req, res) => {
         res.status(500).json({ error: "Error fetching positions" });
     }
 });
+
+// Define routes for orders
+app.post("/newOrder", async (req, res) => {
+    let newOrder = new OrderModel({
+        name: req.body.name,
+        qty: req.body.qty,
+        price: req.body.price,
+        mode: req.body.mode 
+    });
+
+    try {
+        const savedUser = await newOrder.save();
+        res.status(201).json(savedUser);
+    } catch (err) {
+        res.status(500).json({ error: "Error saving user" });
+    }
+
+    res.send("Order saved successfully");
+
+})
 
 // Define routes for orders
 
