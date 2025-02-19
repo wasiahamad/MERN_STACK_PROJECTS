@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 
 import GeneralContext from "./GeneralContext";
+import envirment from "../envirment";
 
 import "./BuyActionWindow.css";
 
@@ -13,7 +14,7 @@ const BuyActionWindow = ({ uid }) => {
    
 
   const handleBuyClick = () => {
-    axios.post("http://localhost:3002/newOrder", {
+    axios.post(`${envirment}/newOrder`, {
       name: uid,
       qty: stockQuantity,
       price: stockPrice,
@@ -24,7 +25,7 @@ const BuyActionWindow = ({ uid }) => {
   };
 
   const handleSellClick = () => {
-    axios.post("http://localhost:3002/newOrder", {
+    axios.post( `${envirment}/newOrder`, {
       name: uid,
       qty: stockQuantity,
       price: stockPrice,
