@@ -33,18 +33,6 @@ mongoose
         console.error("Error connecting to MongoDB:", error);
     });
 
-
-// ✅ **POST API to Save Holdings**
-app.post("/addHoldings", async (req, res) => {
-    try {
-        const holdings = await HoldingsModel.insertMany(req.body);
-        res.status(201).json({ message: "Holdings saved successfully", holdings });
-    } catch (error) {
-        console.error("Error saving holdings:", error);
-        res.status(500).json({ error: "Error saving holdings" });
-    }
-});
-
 // Define routes for holdings 
 app.get("/allHoldings", async (req, res) => {
     try {

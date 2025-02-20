@@ -1,7 +1,7 @@
 import React, { useState , useEffect} from "react";
 import axios from "axios";
 import { VerticalGraph } from "./VerticalGraph";
-import envirment from "../envirment";
+// import envirment from "../envirment";
 
 const Holdings = () => {
 
@@ -9,7 +9,7 @@ const Holdings = () => {
   const [newOrder, setNewOrder] = useState(null);
 
   useEffect(() => {
-    axios.get(`${envirment}/allHoldings`)
+    axios.get("https://investx-bo4d.onrender.com/allHoldings")
       .then((response) => {
         setHoldings(response.data);
       })

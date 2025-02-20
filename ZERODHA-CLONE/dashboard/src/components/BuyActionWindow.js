@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 
 import GeneralContext from "./GeneralContext";
-import envirment from "../envirment";
+// import envirment from "../envirment";
 
 import "./BuyActionWindow.css";
 
@@ -14,7 +14,7 @@ const BuyActionWindow = ({ uid }) => {
    
 
   const handleBuyClick = () => {
-    axios.post(`${envirment}/newOrder`, {
+    axios.post(`https://investx-bo4d.onrender.com/newOrder`, {
       name: uid,
       qty: stockQuantity,
       price: stockPrice,
@@ -25,7 +25,7 @@ const BuyActionWindow = ({ uid }) => {
   };
 
   const handleSellClick = () => {
-    axios.post( `${envirment}/newOrder`, {
+    axios.post( `https://investx-bo4d.onrender.com/newOrder`, {
       name: uid,
       qty: stockQuantity,
       price: stockPrice,
@@ -70,7 +70,7 @@ const BuyActionWindow = ({ uid }) => {
       <div className="buttons">
         <span>Margin required ₹140.65</span>
         <div>
-          <Link className="btn btn-blue" onClick={handleBuyClick}>
+          <Link to="https://investx-bo4d.onrender.com/newOrder" className="btn btn-blue" onClick={handleBuyClick}>
             Buy
           </Link>
           <Link className="btn btn-grey" onClick={handleSellClick}>
