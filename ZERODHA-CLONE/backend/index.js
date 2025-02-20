@@ -61,13 +61,12 @@ app.post("/newOrder", async (req, res) => {
     });
 
     try {
-        const savedUser = await newOrder.save();
-        res.status(201).json(savedUser);
-    } catch (err) {
-        res.status(500).json({ error: "Error saving user" });
+        await newOrder.save();
+        res.json(newOrder);
+    } catch (error) {
+        console.error("Error saving order:", error);
+        res.status(500).json({ error: "Error saving order" });
     }
-
-    res.send("Order saved successfully");
 
 })
 
