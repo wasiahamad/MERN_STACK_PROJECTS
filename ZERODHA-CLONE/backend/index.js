@@ -66,6 +66,18 @@ app.post("/newOrder", async (req, res) => {
     }
 }); 
 
+app.get("/allOrders", async (req, res) => {
+    try {
+        const orders = await OrderModel.find({});
+        res.json(orders);
+    } catch (error) {
+        console.error("Error fetching orders:", error);
+        res.status(500).json({ error: "Error fetching orders" });
+    }
+});
+
+    
+
 
 // Define routes for orders
 
