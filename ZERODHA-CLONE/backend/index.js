@@ -55,24 +55,17 @@ app.get("/allPositions", async (req, res) => {
     }
 });
 
-// Define routes for orders
+// Define routes for post orders
 app.post("/newOrder", async (req, res) => {
-    let newOrder = new OrderModel({
-        name: req.body.name,
-        qty: req.body.qty,
-        price: req.body.price,
-        mode: req.body.mode 
-    });
-
     try {
-        await newOrder.save();
-        res.json(newOrder);
+        const order = await OrderModel.create(req.body);
+        res.json(order);
     } catch (error) {
-        console.error("Error saving order:", error);
-        res.status(500).json({ error: "Error saving order" });
+        console.error("Error creating order:", error);
+        res.status(500).json({ error: "Error creating order" });
     }
+}); 
 
-})
 
 // Define routes for orders
 
