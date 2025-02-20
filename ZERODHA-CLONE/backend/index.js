@@ -8,7 +8,7 @@ const bodyParser = require("body-parser");
 // Import models
 const { PositionsModel } = require("./model/PositionsModel");
 const { HoldingsModel } = require("./model/HoldingsModel"); // Ensure this is pointing to the correct file
-const {OrderModel} = require("./model/OrderModel");
+const { OrderModel } = require("./model/OrderModel");
 
 const port = process.env.PORT || 3002;
 const uri = "mongodb+srv://mdwasia98Zerodha:UCLwK1xnlpBOn1QlZerodha@zerodhaclonecluster.0quer.mongodb.net/zerodhaClone?retryWrites=true&w=majority&appName=ZerodhaCloneCluster";
@@ -33,7 +33,19 @@ mongoose
         console.error("Error connecting to MongoDB:", error);
     });
 
-// Define routes for holdings
+
+// ✅ **POST API to Save Holdings**
+app.post("/addHoldings", async (req, res) => {
+    try {
+        const holdings = await HoldingsModel.insertMany(req.body);
+        res.status(201).json({ message: "Holdings saved successfully", holdings });
+    } catch (error) {
+        console.error("Error saving holdings:", error);
+        res.status(500).json({ error: "Error saving holdings" });
+    }
+});
+
+// Define routes for holdings 
 app.get("/allHoldings", async (req, res) => {
     try {
         const holdings = await HoldingsModel.find({});
@@ -42,7 +54,9 @@ app.get("/allHoldings", async (req, res) => {
         console.error("Error fetching holdings:", error);
         res.status(500).json({ error: "Error fetching holdings" });
     }
+
 });
+
 
 // Define routes for positions
 app.get("/allPositions", async (req, res) => {
@@ -64,7 +78,7 @@ app.post("/newOrder", async (req, res) => {
         console.error("Error creating order:", error);
         res.status(500).json({ error: "Error creating order" });
     }
-}); 
+});
 
 app.get("/allOrders", async (req, res) => {
     try {
@@ -76,7 +90,7 @@ app.get("/allOrders", async (req, res) => {
     }
 });
 
-    
+
 
 
 // Define routes for orders
