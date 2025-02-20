@@ -2,11 +2,11 @@ import React, { useState , useEffect} from "react";
 import axios from "axios";
 import { VerticalGraph } from "./VerticalGraph";
 import envirment from "../envirment";
-// import { holdings } from "../data/data";
 
 const Holdings = () => {
 
   const [holdings, setHoldings] = useState([]);
+  const [newOrder, setNewOrder] = useState(null);
 
   useEffect(() => {
     axios.get(`${envirment}/allHoldings`)
@@ -17,6 +17,19 @@ const Holdings = () => {
         console.log(error);
       });
   }, []);
+
+  useEffect(() => {
+    if (newOrder) {
+      const updatedHoldings = holdings.map((holding) => {
+        if (holding.name === newOrder.name) {
+          return { ...holding, qty: holding.qty + newOrder.qty };
+        }
+        return holding;
+      });
+      setHoldings(updatedHoldings);
+      setNewOrder(null);
+    }
+  }, [newOrder]);
 
   const labels = holdings.map((subArray) => subArray["name"]);
 
