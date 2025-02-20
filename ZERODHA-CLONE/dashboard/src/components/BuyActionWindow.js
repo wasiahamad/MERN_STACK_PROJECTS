@@ -70,7 +70,7 @@ const BuyActionWindow = ({ uid }) => {
       <div className="buttons">
         <span>Margin required ₹140.65</span>
         <div>
-          <Link to="https://investx-bo4d.onrender.com/newOrder" className="btn btn-blue" onClick={handleBuyClick}>
+          <Link to="orders" className="btn btn-blue" onClick={handleBuyClick}>
             Buy
           </Link>
           <Link className="btn btn-grey" onClick={handleSellClick}>
