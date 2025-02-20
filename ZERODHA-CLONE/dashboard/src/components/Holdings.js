@@ -1,6 +1,7 @@
 import React, { useState , useEffect} from "react";
 import axios from "axios";
 import { VerticalGraph } from "./VerticalGraph";
+import envirment from "../envirment";
 // import { holdings } from "../data/data";
 
 const Holdings = () => {
@@ -8,7 +9,7 @@ const Holdings = () => {
   const [holdings, setHoldings] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:3002/allHoldings")
+    axios.get(`${envirment}/allHoldings`)
       .then((response) => {
         setHoldings(response.data);
       })
@@ -42,7 +43,7 @@ const Holdings = () => {
             <th>Qty.</th>
             <th>Avg. cost</th>
             <th>LTP</th>
-            <th>Cur. val</th>
+            <th>Cur.val</th>
             <th>P&L</th>
             <th>Net chg.</th>
             <th>Day chg.</th>
