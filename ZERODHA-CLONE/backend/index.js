@@ -11,7 +11,7 @@ const { HoldingsModel } = require("./model/HoldingsModel"); // Ensure this is po
 const {OrderModel} = require("./model/OrderModel");
 
 const port = process.env.PORT || 3002;
-const uri = process.env.MONGO_URL;
+const uri = "mongodb+srv://mdwasia98Zerodha:UCLwK1xnlpBOn1QlZerodha@zerodhaclonecluster.0quer.mongodb.net/zerodhaClone?retryWrites=true&w=majority&appName=ZerodhaCloneCluster";
 
 const app = express();
 
