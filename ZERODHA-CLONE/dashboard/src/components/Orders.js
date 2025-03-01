@@ -10,7 +10,8 @@ const Orders = () => {
        
         <p>You haven't placed any orders today</p>
 
-        <Link to={"https://investx-bo4d.onrender.com/allOrders"} className="btn" onClick={() => { window.location.href = "https://investx-bo4d.onrender.com/allOrders" }}>
+        <Link to={"https://investx-bo4d.onrender.com/allOrders"} 
+        className="btn" >
           Get started
         </Link>
       </div>

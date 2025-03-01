@@ -77,8 +77,8 @@ const Holdings = () => {
                 <td>{stock.avg? stock.avg.toFixed(2): ""}</td>
                 <td>{stock.price? stock.price.toFixed(2): ""}</td>
                 <td>{curValue.toFixed(2)}</td>
-                <td className={profitClass}>{(curValue - stock.avg*stock.qty).toFixed(2)}</td>
-                <td className={profitClass}>{stock.net? stock.net.toFixed(2): ""}</td>
+                <td className={profitClass}>{(curValue - stock.avg*stock.qty)}</td>
+                <td className={profitClass}>{stock.net.toFixed(2)}</td>
                 <td className={dayClass? dayClass : ""}>{stock.day}</td>
               </tr>
             )
