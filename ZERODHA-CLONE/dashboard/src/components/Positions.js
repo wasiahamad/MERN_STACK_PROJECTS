@@ -1,23 +1,31 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import envirment from "../envirment";
+
 
 // import { positions } from "../data/data";
 
 const Positions = () => {
+  const url = process.env.API_URL;
 
   const [positions, setPositions] = useState([]);
 
   useEffect(() => {
-    axios.get(`${envirment}/allPositions`)
-      .then((response) => {
-        setPositions(response.data);
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  })
+    const handleFetchPosition = async ()=>{
+      try {
+        const response = await axios.get(`https://investx-bo4d.onrender.com/allPositions`)
+            console.log(response.data);
+            if(response.data.positions){
+              setPositions(response.data.positions);
+            } 
+      } catch (error) {
+        console.error("Error fetching positions:", error);
+        
+      }
+
+    }
+    handleFetchPosition();
+  },[])
 
 
   return (
@@ -26,6 +34,7 @@ const Positions = () => {
 
       <div className="order-table">
         <table>
+          <tbody> 
           <tr>
             <th>Product</th>
             <th>Instrument</th>
@@ -53,6 +62,7 @@ const Positions = () => {
               </tr>
             )
           })}
+          </tbody>
         </table>
       </div>
     </>

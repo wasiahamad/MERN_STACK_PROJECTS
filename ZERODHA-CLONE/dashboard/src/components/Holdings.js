@@ -10,19 +10,21 @@ const Holdings = () => {
 
   useEffect(() => {
     const handleFetchData = async () => {
-      await axios.get("https://investx-bo4d.onrender.com/allHoldings")
-        .then((response) => {
-          setHoldings(response.data ? response.data : []);
-        })
-        .catch((error) => {
-          console.log(error.message);
-        });
+      try {
+        const response = await axios.get("https://investx-bo4d.onrender.com/allHoldings")
+            console.log("holdings data : ", response.data);
+            setHoldings(response.data ? response.data : []);
+          
+      } catch (error) {
+        console.error("Error fetching holdings:", error);
+        
+      }
     }
     handleFetchData();
   }, []);
 
   useEffect(() => {
-    if (newOrder) {
+    // if (newOrder) {
       const updatedHoldings = holdings.map((holding) => {
         if (holding.name === newOrder.name) {
           return { ...holding, qty: holding.qty + newOrder.qty };
@@ -31,10 +33,10 @@ const Holdings = () => {
       });
       setHoldings(updatedHoldings);
       setNewOrder(null);
-    }
-  }, [newOrder]);
+    
+  }, [ newOrder]);
 
-  const labels = holdings.map((subArray) => subArray["name"]);
+  const labels = Array.isArray(holdings) && holdings.length > 0 ? holdings.map((subArray) => subArray["name"] ) : [];
 
   const data = {
     labels,
@@ -54,6 +56,7 @@ const Holdings = () => {
 
       <div className="order-table">
         <table>
+        <tbody>
           <tr>
             <th>Instrument</th>
             <th>Qty.</th>
@@ -78,11 +81,12 @@ const Holdings = () => {
                 <td>{stock.price ? stock.price.toFixed(2) : ""}</td>
                 <td>{curValue.toFixed(2)}</td>
                 <td className={profitClass}>{(curValue - stock.avg * stock.qty)}</td>
-                <td className={profitClass}>{stock.net.toFixed(2)}</td>
+                <td className={profitClass}>{stock.net? stock.net : ""}</td>
                 <td className={dayClass ? dayClass : ""}>{stock.day}</td>
               </tr>
             )
           })}
+          </tbody>
         </table>
       </div>
 
