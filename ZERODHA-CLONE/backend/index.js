@@ -14,8 +14,9 @@ const port = process.env.PORT || 3002;
 const uri = "mongodb+srv://mdwasia98Zerodha:UCLwK1xnlpBOn1QlZerodha@zerodhaclonecluster.0quer.mongodb.net/zerodhaClone?retryWrites=true&w=majority&appName=ZerodhaCloneCluster";
 
 const app = express();
+const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
-app.use(cors());
+app.use(cors(corsOrigin));
 app.use(bodyParser.json());
 
 
