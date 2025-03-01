@@ -40,7 +40,6 @@ app.get("/allHoldings", async (req, res) => {
         console.error("Error fetching holdings:", error);
         res.status(500).json({ error: "Error fetching holdings" });
     }
-
 });
 
 
