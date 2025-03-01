@@ -13,9 +13,15 @@ const BuyActionWindow = ({ uid }) => {
   const [stockPrice, setStockPrice] = useState(0.0);
    
 
-  const handleBuyClick = () => {
+  const /* `handleBuyClick` is a function that is triggered when the "Buy" button is clicked. Inside
+  this function, an HTTP POST request is made to the specified URL
+  (`https://investx-bo4d.onrender.com/newOrder`) with the data including the user ID (`uid`),
+  stock quantity (`stockQuantity`), stock price (`stockPrice`), and the mode set to "BUY".
+  After the POST request is sent, the `GeneralContext.closeBuyWindow()` function is called to
+  close the buy action window. */
+  handleBuyClick = (e) => {
     axios.post(`https://investx-bo4d.onrender.com/newOrder`, {
-      name: uid,
+      name:  uid,
       qty: stockQuantity,
       price: stockPrice,
       mode: "BUY",

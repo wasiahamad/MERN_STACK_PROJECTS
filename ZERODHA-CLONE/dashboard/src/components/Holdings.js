@@ -9,13 +9,16 @@ const Holdings = () => {
   const [newOrder, setNewOrder] = useState(null);
 
   useEffect(() => {
-    axios.get("https://investx-bo4d.onrender.com/allHoldings")
-      .then((response) => {
-        setHoldings(response.data);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    const handleFetchData = async () =>{
+      await axios.get("https://investx-bo4d.onrender.com/allHoldings")
+        .then((response) => {
+          setHoldings(response.data? response.data : []);
+        })
+        .catch((error) => {
+          console.log(error.message);
+        });
+    }
+    handleFetchData();
   }, []);
 
   useEffect(() => {

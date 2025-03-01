@@ -90,7 +90,7 @@ const WatchListItem = ({ stock }) => {
             <KeyboardArrowDown className="down" />
           ) : (
             <KeyboardArrowUp className="up" />
-          )}  
+          )}
           <span className="price">{stock.price}</span>
         </div>
       </div>
@@ -101,7 +101,7 @@ const WatchListItem = ({ stock }) => {
 };
 
 
-const WatchListAction = ({uid}) => {
+const WatchListAction = ({ uid }) => {
   const generalContext = useContext(GeneralContext);
 
   const handleBuyClick = () => {
@@ -116,7 +116,7 @@ const WatchListAction = ({uid}) => {
   return (
     <span className="actions">
       <span>
-        <Tooltip title="Buy (B)" placement="top" arrowTransitionComponent={Grow} onClick={handleBuyClick}>
+        <Tooltip title="Buy (B)" placement="top" arrowTransitionComponent={Grow} onClick={handleBuyClick} >
           <button className="buy">Buy</button>
         </Tooltip>
       </span>
@@ -130,7 +130,7 @@ const WatchListAction = ({uid}) => {
       <span>
         <Tooltip title="Analyse (A)" placement="top" arrowTransitionComponent={Grow}>
           <button className="action">
-          <BarChartOutlinedIcon className="icon" />
+            <BarChartOutlinedIcon className="icon" />
           </button>
         </Tooltip>
       </span>
@@ -139,7 +139,7 @@ const WatchListAction = ({uid}) => {
         <Tooltip title="More" placement="top" arrowTransitionComponent={Grow}>
           <button className="action">
             <MoreHorizIcon className="icon" />
-            </button>
+          </button>
         </Tooltip>
       </span>
     </span>
