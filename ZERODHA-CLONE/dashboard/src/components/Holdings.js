@@ -41,7 +41,7 @@ const Holdings = () => {
     datasets: [
       {
         label: "Stock Price",
-        data: holdings.map((stock) => stock.price),
+        data: holdings.map((stock) => stock.price? stock.price : "0"),
         backgroundColor: "rgba(255, 99, 132, 0.5)",
       },
     ],
@@ -72,14 +72,14 @@ const Holdings = () => {
             const dayClass = stock.isLoss ? "loss" : "profit";
             return (
               <tr key={index}>
-                <td>{stock.name}</td>
-                <td>{stock.qty}</td>
-                <td>{stock.avg.toFixed(2)}</td>
-                <td>{stock.price.toFixed(2)}</td>
+                <td>{stock.name? stock.name : ""}</td>
+                <td>{stock.qty? stock.qty : ""}</td>
+                <td>{stock.avg? stock.avg.toFixed(2): ""}</td>
+                <td>{stock.price? stock.price.toFixed(2): ""}</td>
                 <td>{curValue.toFixed(2)}</td>
                 <td className={profitClass}>{(curValue - stock.avg*stock.qty).toFixed(2)}</td>
-                <td className={profitClass}>{stock.net}</td>
-                <td className={dayClass}>{stock.day}</td>
+                <td className={profitClass}>{stock.net? stock.net.toFixed(2): ""}</td>
+                <td className={dayClass? dayClass : ""}>{stock.day}</td>
               </tr>
             )
           })}
