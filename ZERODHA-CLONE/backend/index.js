@@ -23,10 +23,7 @@ app.use(bodyParser.json());
 // Connect to MongoDB
 
 mongoose
-    .connect(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    })
+    .connect(uri)
     .then(() => {
         console.log("Connected to MongoDB");
     })
