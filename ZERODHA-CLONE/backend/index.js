@@ -81,5 +81,5 @@ app.get("/allOrders", async (req, res) => {
 // Define routes for orders
 
 app.listen(port, () => {
-    console.log(`Server is running on port ${3002}`);
+    console.log(`Server is running on port ${port}`);
 });

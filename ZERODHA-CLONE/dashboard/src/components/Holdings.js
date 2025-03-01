@@ -1,4 +1,4 @@
-import React, { useState , useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { VerticalGraph } from "./VerticalGraph";
 // import envirment from "../envirment";
@@ -9,10 +9,10 @@ const Holdings = () => {
   const [newOrder, setNewOrder] = useState(null);
 
   useEffect(() => {
-    const handleFetchData = async () =>{
+    const handleFetchData = async () => {
       await axios.get("https://investx-bo4d.onrender.com/allHoldings")
         .then((response) => {
-          setHoldings(response.data? response.data : []);
+          setHoldings(response.data ? response.data : []);
         })
         .catch((error) => {
           console.log(error.message);
@@ -41,7 +41,7 @@ const Holdings = () => {
     datasets: [
       {
         label: "Stock Price",
-        data: holdings.map((stock) => stock.price? stock.price : "0"),
+        data: holdings.map((stock) => stock.price ? stock.price : "0"),
         backgroundColor: "rgba(255, 99, 132, 0.5)",
       },
     ],
@@ -67,19 +67,19 @@ const Holdings = () => {
 
           {holdings.map((stock, index) => {
             const curValue = stock.price * stock.qty;
-            const isProfit = curValue - stock.avg*stock.qty >=0.0;
+            const isProfit = curValue - stock.avg * stock.qty >= 0.0;
             const profitClass = isProfit ? "profit" : "loss";
             const dayClass = stock.isLoss ? "loss" : "profit";
             return (
               <tr key={index}>
-                <td>{stock.name? stock.name : ""}</td>
-                <td>{stock.qty? stock.qty : ""}</td>
-                <td>{stock.avg? stock.avg.toFixed(2): ""}</td>
-                <td>{stock.price? stock.price.toFixed(2): ""}</td>
+                <td>{stock.name ? stock.name : ""}</td>
+                <td>{stock.qty ? stock.qty : ""}</td>
+                <td>{stock.avg ? stock.avg.toFixed(2) : ""}</td>
+                <td>{stock.price ? stock.price.toFixed(2) : ""}</td>
                 <td>{curValue.toFixed(2)}</td>
-                <td className={profitClass}>{(curValue - stock.avg*stock.qty)}</td>
+                <td className={profitClass}>{(curValue - stock.avg * stock.qty)}</td>
                 <td className={profitClass}>{stock.net.toFixed(2)}</td>
-                <td className={dayClass? dayClass : ""}>{stock.day}</td>
+                <td className={dayClass ? dayClass : ""}>{stock.day}</td>
               </tr>
             )
           })}
