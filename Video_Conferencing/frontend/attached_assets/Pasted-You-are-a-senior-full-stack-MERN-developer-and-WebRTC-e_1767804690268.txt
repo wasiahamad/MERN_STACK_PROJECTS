@@ -1,0 +1,98 @@
+You are a senior full-stack MERN developer and WebRTC expert.
+
+Build a Zoom-like real-time video conferencing web application using the MERN stack with modern, clean, professional UI/UX.
+
+TECH STACK:
+- Frontend: React.js (Vite), Tailwind CSS, Framer Motion
+- Backend: Node.js, Express.js
+- Database: MongoDB with Mongoose
+- Real-time: WebRTC + Socket.IO
+- Authentication: JWT (access + refresh tokens)
+- Media: WebRTC (getUserMedia, RTCPeerConnection)
+- Deployment ready architecture
+
+CORE FEATURES (MUST IMPLEMENT):
+
+1. Authentication & User Management
+- User Signup/Login using Email or Mobile Number
+- JWT-based authentication
+- User profile (name, email, avatar)
+- Protected routes
+
+2. Meeting / Room System
+- Create Meeting (Generate unique room ID)
+- Join Meeting using Room ID
+- Show participant list in real time
+- Leave meeting functionality
+- Host and participant roles
+
+3. Video Conferencing (WebRTC)
+- Real-time video & audio calling using WebRTC
+- Mute / Unmute microphone
+- Camera On / Off
+- Switch camera & microphone
+- Screen sharing (optional but preferred)
+- Handle user join/leave smoothly
+- Peer-to-peer connection with signaling via Socket.IO
+
+4. Chat System
+- In-meeting real-time chat
+- Sender/receiver message UI
+- Auto-scroll and timestamps
+
+5. Modern UI / UX (VERY IMPORTANT)
+- Zoom-like dashboard layout
+- Clean dark/light theme
+- Responsive for desktop & mobile
+- Video grid layout (dynamic based on participants)
+- Smooth animations using Framer Motion
+- Professional buttons, icons, and spacing
+- Toast notifications for join/leave, errors
+
+6. Dashboard
+- User dashboard after login
+- Create new meeting button
+- Join meeting input
+- Show previous meetings (stored in DB)
+
+7. Backend APIs
+- Auth APIs (register, login, refresh token)
+- Meeting APIs (create, join, history)
+- Socket.IO signaling server
+- Proper folder structure (MVC pattern)
+
+8. Database Models
+- User model
+- Meeting model (host, participants, timestamps)
+- Message model (optional)
+
+9. Code Quality
+- Clean, modular, readable code
+- Proper comments
+- Environment variables usage
+- Error handling & validation
+
+10. Extra (Bonus)
+- Waiting room before joining meeting
+- Copy meeting link button
+- Network error handling
+- Media permission handling UI
+
+DELIVERABLE:
+- Full frontend + backend code
+- Clear folder structure
+- Ready to run on Replit
+- Include README with setup steps
+
+IMPORTANT:
+- Use WebRTC correctly (offer, answer, ICE candidates)
+- Use Socket.IO ONLY for signaling (not media streaming)
+- UI must feel like a modern Zoom / Google Meet clone
+- Do not skip UI/UX polish
+
+Start by generating:
+1. Project folder structure
+2. Backend code
+3. Frontend code
+4. WebRTC + Socket.IO logic
+5. Final integration

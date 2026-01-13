@@ -1,0 +1,110 @@
+import { Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff, PhoneOff, MessageSquare } from "lucide-react";
+import { useLocation } from "wouter";
+
+interface MeetingControlsProps {
+  isMuted: boolean;
+  isVideoOff: boolean;
+  isScreenSharing: boolean;
+  onToggleMute: () => void;
+  onToggleVideo: () => void;
+  onShareScreen: () => void;
+  isChatOpen: boolean;
+  onToggleChat: () => void;
+  roomId: string;
+}
+
+export function MeetingControls({
+  isMuted,
+  isVideoOff,
+  isScreenSharing,
+  onToggleMute,
+  onToggleVideo,
+  onShareScreen,
+  isChatOpen,
+  onToggleChat,
+}: MeetingControlsProps) {
+  const [, setLocation] = useLocation();
+
+  const handleLeave = () => {
+    if (confirm("Are you sure you want to leave the meeting?")) {
+      setLocation("/");
+    }
+  };
+
+  return (
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-4 bg-gray-900/90 backdrop-blur-lg px-6 py-4 rounded-2xl border border-white/10 shadow-2xl">
+        <ControlButton
+          onClick={onToggleMute}
+          active={!isMuted}
+          icon={isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          label={isMuted ? "Unmute" : "Mute"}
+          variant={isMuted ? "danger" : "secondary"}
+        />
+
+        <ControlButton
+          onClick={onToggleVideo}
+          active={!isVideoOff}
+          icon={isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          label={isVideoOff ? "Start Video" : "Stop Video"}
+          variant={isVideoOff ? "danger" : "secondary"}
+        />
+
+        <ControlButton
+          onClick={onShareScreen}
+          active={isScreenSharing}
+          icon={isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
+          label={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+          variant={isScreenSharing ? "active" : "secondary"}
+        />
+
+        <ControlButton
+          onClick={onToggleChat}
+          active={isChatOpen}
+          icon={<MessageSquare className="w-5 h-5" />}
+          label={isChatOpen ? "Close Chat" : "Open Chat"}
+          variant={isChatOpen ? "primary" : "secondary"}
+        />
+
+        <div className="w-px h-10 bg-white/10 mx-2" />
+
+        <button
+          onClick={handleLeave}
+          className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20"
+        >
+          <PhoneOff className="w-5 h-5" />
+          Leave
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ControlButton({ 
+  onClick, 
+  icon, 
+  label, 
+  variant = "secondary" 
+}: { 
+  onClick: () => void; 
+  icon: React.ReactNode; 
+  label: string;
+  variant?: "primary" | "secondary" | "danger" | "active";
+}) {
+  const variants = {
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+    secondary: "bg-white/10 text-white hover:bg-white/20",
+    danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
+    active: "bg-green-500/20 text-green-400 border border-green-500/20",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${variants[variant]}`}
+      title={label}
+    >
+      {icon}
+    </button>
+  );
+}
