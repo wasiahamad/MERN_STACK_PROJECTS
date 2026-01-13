@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRoute } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMeeting } from "@/hooks/use-meetings";
@@ -17,25 +17,12 @@ export default function Meeting() {
   
   const { localStream, peers, controls, chat } = useWebRTC({ 
     roomId, 
-    user: user || null 
+    user: user || null,
+    token,
+    meetingTitle: meeting?.title || "Meeting",
   });
 
   const [chatOpen, setChatOpen] = useState(false);
-
-  useEffect(() => {
-    if (!token || !roomId) return;
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-    fetch(`${baseUrl}/api/users/add_to_activity`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ meeting_code: roomId, title: meeting?.title || "Meeting" }),
-    }).catch(() => null);
-    // Intentionally no deps on meeting to avoid repeat posts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, roomId]);
 
   if (isMeetingLoading) {
     return (

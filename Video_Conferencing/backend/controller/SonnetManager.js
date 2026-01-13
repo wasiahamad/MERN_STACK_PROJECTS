@@ -1,4 +1,6 @@
 import { Server } from 'socket.io';
+import jwt from "jsonwebtoken";
+import MeetingActivity from "../model/MeetingActivity.model.js";
 
 export const initSocket = (httpServer) => {
     const io = new Server(httpServer, {
@@ -12,7 +14,31 @@ export const initSocket = (httpServer) => {
     const roomToSockets = new Map(); // roomId -> Set<socketId>
     const socketToRoom = new Map(); // socketId -> roomId
 
-    const joinRoom = (socket, roomId) => {
+    const readHandshakeToken = (socket) => {
+        const authToken = socket?.handshake?.auth?.token;
+        if (typeof authToken === "string" && authToken.trim()) return authToken.trim();
+
+        const queryToken = socket?.handshake?.query?.token;
+        if (typeof queryToken === "string" && queryToken.trim()) return queryToken.trim();
+        return null;
+    };
+
+    const getSocketUser = (socket) => {
+        try {
+            const token = readHandshakeToken(socket);
+            if (!token) return null;
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded?.id) return null;
+            return {
+                id: String(decoded.id),
+                username: String(decoded.username || ""),
+            };
+        } catch {
+            return null;
+        }
+    };
+
+    const joinRoom = async (socket, roomId, payload) => {
         if (!roomId) return;
 
         socket.join(roomId);
@@ -27,9 +53,28 @@ export const initSocket = (httpServer) => {
         }
 
         socketsInRoom.add(socket.id);
+
+        // Persist join activity when user is authenticated
+        const socketUser = getSocketUser(socket);
+        if (socketUser?.id) {
+            const title = typeof payload?.title === "string" && payload.title.trim() ? payload.title.trim() : "Meeting";
+            try {
+                const activity = await MeetingActivity.create({
+                    userId: socketUser.id,
+                    username: socketUser.username,
+                    meetingCode: String(roomId),
+                    title,
+                    joinedAt: new Date(),
+                    socketId: socket.id,
+                });
+                socket.data.activityId = String(activity._id);
+            } catch {
+                // best-effort
+            }
+        }
     };
 
-    const leaveRoom = (socket) => {
+    const leaveRoom = async (socket) => {
         const roomId = socketToRoom.get(socket.id);
         if (!roomId) return;
 
@@ -47,14 +92,24 @@ export const initSocket = (httpServer) => {
         socket.to(roomId).emit('user-disconnected', socket.id);
         // Zoom-main compatibility
         socket.to(roomId).emit('user-left', socket.id);
+
+        const activityId = socket?.data?.activityId;
+        if (activityId) {
+            try {
+                await MeetingActivity.findByIdAndUpdate(activityId, { $set: { leftAt: new Date() } });
+            } catch {
+                // best-effort
+            }
+            socket.data.activityId = null;
+        }
     };
 
     io.on('connection', (socket) => {
         console.log('User connected:', socket.id);
 
         // Your frontend (Vite/TS) events
-        socket.on('join-room', (roomId) => {
-            joinRoom(socket, String(roomId));
+        socket.on('join-room', (roomId, payload) => {
+            joinRoom(socket, String(roomId), payload);
         });
 
         socket.on('offer', ({ target, offer }) => {
@@ -73,8 +128,8 @@ export const initSocket = (httpServer) => {
         });
 
         // Zoom-main events (aliases)
-        socket.on('join-call', (path) => {
-            joinRoom(socket, String(path));
+        socket.on('join-call', (path, payload) => {
+            joinRoom(socket, String(path), payload);
             // Zoom-main uses "user-joined" as the join broadcast. We'll emit for compatibility.
             const roomId = String(path);
             const socketsInRoom = roomToSockets.get(roomId) || new Set();

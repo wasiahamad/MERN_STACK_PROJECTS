@@ -8,6 +8,11 @@ const meetingActivitySchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    username: {
+      type: String,
+      default: "",
+      index: true,
+    },
     meetingCode: {
       type: String,
       required: true,
@@ -16,6 +21,21 @@ const meetingActivitySchema = new mongoose.Schema(
     title: {
       type: String,
       default: "Meeting",
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+    leftAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    socketId: {
+      type: String,
+      default: "",
+      index: true,
     },
   },
   { timestamps: true }

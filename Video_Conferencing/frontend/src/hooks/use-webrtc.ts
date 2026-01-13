@@ -11,6 +11,8 @@ interface Peer {
 interface UseWebRTCProps {
   roomId: string;
   user: User | null;
+  token?: string | null;
+  meetingTitle?: string;
 }
 
 const ICE_SERVERS = {
@@ -20,7 +22,7 @@ const ICE_SERVERS = {
   ],
 };
 
-export function useWebRTC({ roomId, user }: UseWebRTCProps) {
+export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps) {
   const [peers, setPeers] = useState<Record<string, Peer>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -45,6 +47,7 @@ export function useWebRTC({ roomId, user }: UseWebRTCProps) {
       path: "/socket.io",
       transports: ["websocket"],
       query: { roomId, userId: user.id.toString() },
+      auth: token ? { token } : undefined,
     });
 
     const initMedia = async () => {
@@ -56,7 +59,9 @@ export function useWebRTC({ roomId, user }: UseWebRTCProps) {
         setLocalStream(stream);
         localStreamRef.current = stream;
         
-        socketRef.current?.emit("join-room", roomId, user.id);
+        socketRef.current?.emit("join-room", roomId, {
+          title: meetingTitle || "Meeting",
+        });
       } catch (err) {
         console.error("Error accessing media devices:", err);
       }
@@ -69,7 +74,7 @@ export function useWebRTC({ roomId, user }: UseWebRTCProps) {
       Object.values(peersRef.current).forEach(p => p.connection.close());
       socketRef.current?.disconnect();
     };
-  }, [roomId, user]);
+  }, [roomId, user, token, meetingTitle]);
 
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream) => {
     const connection = new RTCPeerConnection(ICE_SERVERS);

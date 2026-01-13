@@ -11,6 +11,21 @@ export type Meeting = {
   status?: "instant" | "scheduled" | "completed";
 };
 
+export type MeetingHistoryItem = {
+  meetingId: string | null;
+  meetingCode: string;
+  title: string;
+  scheduledAt: string | null;
+  plannedDuration: number | null;
+  host: { id: string; username: string } | null;
+  inProgress: boolean;
+  startedAt: string | null;
+  endedAt: string | null;
+  actualDurationMinutes: number;
+  participantCount: number;
+  participants: string[];
+};
+
 const STORAGE_KEY = "vc_meetings";
 
 function readMeetings(): Meeting[] {
@@ -60,6 +75,26 @@ export function useMeetings() {
       if (meetings.length) writeMeetings(meetings);
       return meetings;
     },
+  });
+}
+
+export function useMeetingHistory() {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["meetings", "history", "details"],
+    queryFn: async () => {
+      if (!token) return [] as MeetingHistoryItem[];
+
+      const res = await fetch(`${getApiBaseUrl()}/api/meetings/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) return [] as MeetingHistoryItem[];
+      return Array.isArray(payload?.history) ? (payload.history as MeetingHistoryItem[]) : ([] as MeetingHistoryItem[]);
+    },
+    staleTime: 10_000,
   });
 }
 

@@ -15,8 +15,10 @@ export const addToActivity = async (req, res) => {
 
     const activity = await MeetingActivity.create({
       userId: req.user._id,
+      username: req.user.username,
       meetingCode,
       title: title || "Meeting",
+      joinedAt: new Date(),
     });
 
     return res.status(httpStatus.CREATED).json({
@@ -26,6 +28,7 @@ export const addToActivity = async (req, res) => {
         id: activity._id,
         meetingCode: activity.meetingCode,
         title: activity.title,
+        joinedAt: activity.joinedAt || activity.createdAt,
         createdAt: activity.createdAt,
       },
     });
@@ -50,6 +53,8 @@ export const getAllActivity = async (req, res) => {
         id: String(r._id),
         title: r.title,
         roomId: r.meetingCode,
+        joinedAt: r.joinedAt || r.createdAt,
+        leftAt: r.leftAt || null,
         createdAt: r.createdAt,
       })),
     });

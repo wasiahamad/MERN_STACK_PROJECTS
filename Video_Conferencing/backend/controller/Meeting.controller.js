@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import crypto from "crypto";
 import Meeting from "../model/Meeting.model.js";
+import MeetingActivity from "../model/MeetingActivity.model.js";
 
 function computeStatus(meeting) {
   const start = meeting.date ? new Date(meeting.date).getTime() : 0;
@@ -217,6 +218,114 @@ export const deleteMeeting = async (req, res) => {
       return res.status(httpStatus.NOT_FOUND).json({ success: false, message: "Meeting not found" });
     }
     return res.status(httpStatus.OK).json({ success: true });
+  } catch (error) {
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+export const getMeetingHistory = async (req, res) => {
+  try {
+    const activeCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
+
+    // Find meeting codes the current user has participated in
+    const userMeetingCodes = await MeetingActivity.distinct("meetingCode", { userId: req.user._id });
+    if (!userMeetingCodes.length) {
+      return res.status(httpStatus.OK).json({ success: true, history: [] });
+    }
+
+    // Aggregate per meetingCode: start/end, distinct participants
+    const aggregates = await MeetingActivity.aggregate([
+      { $match: { meetingCode: { $in: userMeetingCodes } } },
+      {
+        $group: {
+          _id: "$meetingCode",
+          title: { $max: "$title" },
+          firstJoin: { $min: { $ifNull: ["$joinedAt", "$createdAt"] } },
+          lastLeave: {
+            $max: {
+              $ifNull: ["$leftAt", { $ifNull: ["$joinedAt", "$createdAt"] }],
+            },
+          },
+          inProgress: {
+            $max: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$leftAt", null] },
+                    { $gte: [{ $ifNull: ["$joinedAt", "$createdAt"] }, activeCutoff] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          participantIds: { $addToSet: "$userId" },
+          participantNames: {
+            $addToSet: {
+              $cond: [
+                { $and: [{ $ne: ["$username", null] }, { $ne: ["$username", ""] }] },
+                "$username",
+                null,
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { lastLeave: -1 } },
+      { $limit: 50 },
+    ]);
+
+    const codes = aggregates.map((a) => a._id);
+    const meetings = await Meeting.find({ meetingCode: { $in: codes } })
+      .populate({ path: "user_id", select: "_id username" })
+      .lean();
+
+    const meetingByCode = new Map(meetings.map((m) => [String(m.meetingCode), m]));
+
+    const history = aggregates.map((a) => {
+      const meeting = meetingByCode.get(String(a._id));
+      const hostUser = meeting?.user_id;
+
+      const startedAt = a.firstJoin ? new Date(a.firstJoin) : null;
+      const inProgress = Boolean(a.inProgress);
+      const endedAt = inProgress ? null : a.lastLeave ? new Date(a.lastLeave) : startedAt;
+      const durationEnd = inProgress ? new Date() : endedAt;
+      const durationMs =
+        startedAt && durationEnd ? Math.max(0, durationEnd.getTime() - startedAt.getTime()) : 0;
+      const actualDurationMinutes = Math.max(0, Math.round(durationMs / 60000));
+
+      const participantCount = Array.isArray(a.participantIds) ? a.participantIds.length : 0;
+      const participantUsernames = Array.isArray(a.participantNames)
+        ? a.participantNames.filter(Boolean).slice(0, 12)
+        : [];
+
+      return {
+        meetingId: meeting?._id ? String(meeting._id) : null,
+        meetingCode: String(a._id),
+        title: (meeting?.title || a.title || "Meeting").toString(),
+        scheduledAt: meeting?.date || null,
+        plannedDuration: typeof meeting?.duration === "number" ? meeting.duration : null,
+        host: hostUser
+          ? {
+              id: String(hostUser._id),
+              username: String(hostUser.username || ""),
+            }
+          : null,
+        inProgress,
+        startedAt: startedAt ? startedAt.toISOString() : null,
+        endedAt: endedAt ? endedAt.toISOString() : null,
+        actualDurationMinutes,
+        participantCount,
+        participants: participantUsernames,
+      };
+    });
+
+    return res.status(httpStatus.OK).json({ success: true, history });
   } catch (error) {
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       success: false,

@@ -18,10 +18,12 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   useCreateMeeting,
   useDeleteMeeting,
+  useMeetingHistory,
   useMeetings,
   useScheduleMeeting,
   useUpdateMeeting,
   type Meeting,
+  type MeetingHistoryItem,
 } from "@/hooks/use-meetings";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +63,9 @@ export default function Dashboard() {
   const meetingsQuery = useMeetings();
   const meetings = meetingsQuery.data || [];
 
+  const historyQuery = useMeetingHistory();
+  const history = historyQuery.data || [];
+
   const createMeeting = useCreateMeeting();
   const scheduleMeeting = useScheduleMeeting();
   const updateMeeting = useUpdateMeeting();
@@ -95,6 +100,26 @@ export default function Dashboard() {
       .map((m) => ({ ...m, status: m.status || getMeetingStatus(m) }))
       .slice(0, 12);
   }, [meetings]);
+
+  const visibleHistory = useMemo(() => {
+    return [...history].slice(0, 12);
+  }, [history]);
+
+  const asManagedMeeting = (h: MeetingHistoryItem): Meeting | null => {
+    if (!h.meetingId) return null;
+    // only allow edit/delete when the current user is the host
+    const hostId = h.host?.id;
+    if (!hostId || hostId !== String(user?.id || "")) return null;
+    return {
+      id: h.meetingId,
+      title: h.title || "Meeting",
+      roomId: h.meetingCode,
+      createdAt: h.startedAt || new Date().toISOString(),
+      scheduledAt: h.scheduledAt || h.startedAt || new Date().toISOString(),
+      duration: h.plannedDuration ?? 45,
+      status: "completed",
+    };
+  };
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,45 +392,58 @@ export default function Dashboard() {
               </div>
 
               <div className="divide-y divide-white/5">
-                {meetingsQuery.isLoading ? (
+                {historyQuery.isLoading ? (
                   <div className="p-10 flex justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                   </div>
-                ) : visibleMeetings.length === 0 ? (
+                ) : visibleHistory.length === 0 ? (
                   <div className="p-12 text-center text-muted-foreground">
                     <p>No activity yet.</p>
-                    <p className="text-sm mt-2">Create or schedule a meeting to see it here.</p>
+                    <p className="text-sm mt-2">Join a meeting to see your meeting history here.</p>
                   </div>
                 ) : (
-                  visibleMeetings.map((m) => {
-                    const status = m.status || getMeetingStatus(m);
-                    const when = m.scheduledAt ? new Date(m.scheduledAt) : new Date(m.createdAt);
+                  visibleHistory.map((h) => {
+                    const startedAt = h.startedAt ? new Date(h.startedAt) : null;
+                    const endedAt = h.endedAt ? new Date(h.endedAt) : null;
+                    const when = startedAt || (h.scheduledAt ? new Date(h.scheduledAt) : new Date());
+                    const hostName = h.host?.username || "Unknown";
+                    const managed = asManagedMeeting(h);
+                    const planned = typeof h.plannedDuration === "number" ? h.plannedDuration : null;
+                    const actual = Number(h.actualDurationMinutes || 0);
+                    const participantNames = Array.isArray(h.participants) ? h.participants.filter(Boolean) : [];
                     return (
-                      <div key={m.id} className="p-6 hover:bg-white/5 transition-colors group">
+                      <div key={`${h.meetingId || "na"}-${h.meetingCode}-${h.startedAt || ""}`} className="p-6 hover:bg-white/5 transition-colors group">
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
                               <Clock className="w-6 h-6 text-primary" />
                             </div>
                             <div>
-                              <div className="font-semibold text-lg">{m.title || "Meeting"}</div>
+                              <div className="font-semibold text-lg">{h.title || "Meeting"}</div>
                               <div className="text-sm text-muted-foreground mt-1">
-                                Hosted by {user?.username} • {Number(m.duration || 45)} mins
+                                Hosted by {hostName}
+                                {planned ? ` • Planned ${planned} mins` : ""}
+                                {h.inProgress ? ` • Live ${actual} mins` : ` • Actual ${actual} mins`}
+                                {` • ${h.participantCount} joined`}
                               </div>
+                              {participantNames.length ? (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Participants: {participantNames.slice(0, 6).join(", ")}
+                                  {participantNames.length > 6 ? ` +${participantNames.length - 6} more` : ""}
+                                </div>
+                              ) : null}
                               <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                                 <span>{format(when, "MMM d, yyyy")}</span>
                                 <span className="text-white/20">•</span>
-                                <span className="font-mono">{m.roomId}</span>
+                                <span className="font-mono">{h.meetingCode}</span>
                                 <span
                                   className={
-                                    status === "completed"
-                                      ? "px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20"
-                                      : status === "scheduled"
-                                        ? "px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20"
-                                        : "px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground border border-white/10"
+                                    h.inProgress
+                                      ? "px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20"
+                                      : "px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20"
                                   }
                                 >
-                                  {status === "completed" ? "Completed" : status === "scheduled" ? "Scheduled" : "Instant"}
+                                  {h.inProgress ? "In progress" : "Completed"}
                                 </span>
                               </div>
                             </div>
@@ -413,10 +451,10 @@ export default function Dashboard() {
 
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setLocation(`/meeting/${m.roomId}`)}
+                              onClick={() => setLocation(`/meeting/${h.meetingCode}`)}
                               className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold transition-colors"
                             >
-                              Start
+                              Join
                             </button>
 
                             <DropdownMenu>
@@ -429,19 +467,23 @@ export default function Dashboard() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-background border border-white/10">
-                                <DropdownMenuItem onClick={() => handleCopy(m.roomId)}>
+                                <DropdownMenuItem onClick={() => handleCopy(h.meetingCode)}>
                                   <Copy className="w-4 h-4 mr-2" /> Copy code
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openEdit(m)}>
-                                  <Pencil className="w-4 h-4 mr-2" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(m)}
-                                  className="text-red-400 focus:text-red-400"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                </DropdownMenuItem>
+                                {managed ? (
+                                  <>
+                                    <DropdownMenuItem onClick={() => openEdit(managed)}>
+                                      <Pencil className="w-4 h-4 mr-2" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => handleDelete(managed)}
+                                      className="text-red-400 focus:text-red-400"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : null}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

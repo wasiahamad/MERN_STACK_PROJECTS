@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth.js";
 import {
   createMeeting,
   deleteMeeting,
+  getMeetingHistory,
   getMeetingByCode,
   getMeetingById,
   listMeetings,
@@ -12,6 +13,7 @@ import {
 const router = Router();
 
 router.get("/", requireAuth, listMeetings);
+router.get("/history", requireAuth, getMeetingHistory);
 router.post("/", requireAuth, createMeeting);
 router.get("/code/:meetingCode", requireAuth, getMeetingByCode);
 router.get("/:id", requireAuth, getMeetingById);
