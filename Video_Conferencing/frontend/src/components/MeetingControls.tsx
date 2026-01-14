@@ -1,5 +1,6 @@
-import { Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff, PhoneOff, MessageSquare } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff, PhoneOff, MessageSquare, Users, VolumeX, Lock, LockOpen } from "lucide-react";
 import { useLocation } from "wouter";
+import type { ReactNode } from "react";
 
 interface MeetingControlsProps {
   isMuted: boolean;
@@ -10,6 +11,12 @@ interface MeetingControlsProps {
   onShareScreen: () => void;
   isChatOpen: boolean;
   onToggleChat: () => void;
+  isParticipantsOpen?: boolean;
+  onToggleParticipants?: () => void;
+  canHostControls?: boolean;
+  onMuteAll?: () => void;
+  meetingLocked?: boolean;
+  onToggleLock?: () => void;
   roomId: string;
 }
 
@@ -22,6 +29,12 @@ export function MeetingControls({
   onShareScreen,
   isChatOpen,
   onToggleChat,
+  isParticipantsOpen = false,
+  onToggleParticipants,
+  canHostControls = false,
+  onMuteAll,
+  meetingLocked = false,
+  onToggleLock,
 }: MeetingControlsProps) {
   const [, setLocation] = useLocation();
 
@@ -36,7 +49,6 @@ export function MeetingControls({
       <div className="flex items-center gap-4 bg-gray-900/90 backdrop-blur-lg px-6 py-4 rounded-2xl border border-white/10 shadow-2xl">
         <ControlButton
           onClick={onToggleMute}
-          active={!isMuted}
           icon={isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           label={isMuted ? "Unmute" : "Mute"}
           variant={isMuted ? "danger" : "secondary"}
@@ -44,7 +56,6 @@ export function MeetingControls({
 
         <ControlButton
           onClick={onToggleVideo}
-          active={!isVideoOff}
           icon={isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           label={isVideoOff ? "Start Video" : "Stop Video"}
           variant={isVideoOff ? "danger" : "secondary"}
@@ -52,7 +63,6 @@ export function MeetingControls({
 
         <ControlButton
           onClick={onShareScreen}
-          active={isScreenSharing}
           icon={isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
           label={isScreenSharing ? "Stop Sharing" : "Share Screen"}
           variant={isScreenSharing ? "active" : "secondary"}
@@ -60,11 +70,37 @@ export function MeetingControls({
 
         <ControlButton
           onClick={onToggleChat}
-          active={isChatOpen}
           icon={<MessageSquare className="w-5 h-5" />}
           label={isChatOpen ? "Close Chat" : "Open Chat"}
           variant={isChatOpen ? "primary" : "secondary"}
         />
+
+        {onToggleParticipants ? (
+          <ControlButton
+            onClick={onToggleParticipants}
+            icon={<Users className="w-5 h-5" />}
+            label={isParticipantsOpen ? "Close Participants" : "Participants"}
+            variant={isParticipantsOpen ? "primary" : "secondary"}
+          />
+        ) : null}
+
+        {canHostControls && onMuteAll ? (
+          <ControlButton
+            onClick={onMuteAll}
+            icon={<VolumeX className="w-5 h-5" />}
+            label="Mute All"
+            variant="danger"
+          />
+        ) : null}
+
+        {canHostControls && onToggleLock ? (
+          <ControlButton
+            onClick={onToggleLock}
+            icon={meetingLocked ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+            label={meetingLocked ? "Unlock Meeting" : "Lock Meeting"}
+            variant={meetingLocked ? "active" : "secondary"}
+          />
+        ) : null}
 
         <div className="w-px h-10 bg-white/10 mx-2" />
 
@@ -87,7 +123,7 @@ function ControlButton({
   variant = "secondary" 
 }: { 
   onClick: () => void; 
-  icon: React.ReactNode; 
+  icon: ReactNode; 
   label: string;
   variant?: "primary" | "secondary" | "danger" | "active";
 }) {

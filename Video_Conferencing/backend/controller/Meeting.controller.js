@@ -1,7 +1,56 @@
 import httpStatus from "http-status";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import Meeting from "../model/Meeting.model.js";
-import MeetingActivity from "../model/MeetingActivity.model.js";
+import { getIO } from "./SonnetManager.js";
+
+function toIdString(value) {
+  if (!value) return "";
+  return typeof value === "string" ? value : String(value);
+}
+
+function getHostId(meeting) {
+  return meeting?.hostId || meeting?.user_id || null;
+}
+
+function hasUserId(list, userId) {
+  const id = toIdString(userId);
+  if (!id) return false;
+  if (!Array.isArray(list)) return false;
+  return list.some((v) => toIdString(v) === id);
+}
+
+function getMeetingRole(meeting, userId) {
+  const id = toIdString(userId);
+  if (!id || !meeting) return "none";
+
+  const hostId = toIdString(getHostId(meeting));
+  if (hostId && hostId === id) return "host";
+
+  if (hasUserId(meeting.coHosts, id)) return "cohost";
+  if (Array.isArray(meeting.participants) && meeting.participants.some((p) => toIdString(p?.userId) === id)) {
+    return "participant";
+  }
+  return "participant";
+}
+
+function serializeRoles(meeting) {
+  const participants = Array.isArray(meeting.participants)
+    ? meeting.participants.map((p) => ({
+        userId: toIdString(p.userId),
+        role: String(p.role || "participant"),
+      }))
+    : [];
+
+  return {
+    meetingId: toIdString(meeting._id),
+    roomId: toIdString(meeting.meetingCode),
+    locked: Boolean(meeting.locked),
+    hostId: toIdString(getHostId(meeting)),
+    coHosts: Array.isArray(meeting.coHosts) ? meeting.coHosts.map((id) => toIdString(id)) : [],
+    participants,
+  };
+}
 
 function computeStatus(meeting) {
   const start = meeting.date ? new Date(meeting.date).getTime() : 0;
@@ -50,6 +99,18 @@ export const createMeeting = async (req, res) => {
     const meeting = await Meeting.create({
       title,
       user_id: req.user._id,
+      hostId: req.user._id,
+      coHosts: [],
+      locked: false,
+      participants: [
+        {
+          userId: req.user._id,
+          role: "host",
+          joinedAt: new Date(),
+          lastJoinedAt: new Date(),
+          lastLeftAt: null,
+        },
+      ],
       date,
       duration,
       meetingCode,
@@ -66,6 +127,167 @@ export const createMeeting = async (req, res) => {
         duration: meeting.duration,
         status: computeStatus(meeting),
       },
+    });
+  } catch (error) {
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+export const lockMeeting = async (req, res) => {
+  try {
+    const meetingId = String(req.params?.id || "").trim();
+    if (!mongoose.isValidObjectId(meetingId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: "Invalid meeting id" });
+    }
+
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      return res.status(httpStatus.NOT_FOUND).json({ success: false, message: "Meeting not found" });
+    }
+
+    const role = getMeetingRole(meeting, req.user?._id);
+    if (role !== "host") {
+      return res.status(httpStatus.FORBIDDEN).json({ success: false, message: "Only host can lock meeting" });
+    }
+
+    if (!meeting.hostId) meeting.hostId = meeting.user_id;
+    if (!meeting.locked) {
+      meeting.locked = true;
+      await meeting.save();
+    }
+
+    const io = getIO();
+    if (io) {
+      io.to(String(meeting.meetingCode)).emit("meeting-locked", {
+        meetingId: String(meeting._id),
+        roomId: String(meeting.meetingCode),
+        locked: true,
+      });
+    }
+
+    return res.status(httpStatus.OK).json({ success: true, locked: true });
+  } catch (error) {
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+export const unlockMeeting = async (req, res) => {
+  try {
+    const meetingId = String(req.params?.id || "").trim();
+    if (!mongoose.isValidObjectId(meetingId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: "Invalid meeting id" });
+    }
+
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      return res.status(httpStatus.NOT_FOUND).json({ success: false, message: "Meeting not found" });
+    }
+
+    const role = getMeetingRole(meeting, req.user?._id);
+    if (role !== "host") {
+      return res.status(httpStatus.FORBIDDEN).json({ success: false, message: "Only host can unlock meeting" });
+    }
+
+    if (!meeting.hostId) meeting.hostId = meeting.user_id;
+    if (meeting.locked) {
+      meeting.locked = false;
+      await meeting.save();
+    }
+
+    const io = getIO();
+    if (io) {
+      io.to(String(meeting.meetingCode)).emit("meeting-unlocked", {
+        meetingId: String(meeting._id),
+        roomId: String(meeting.meetingCode),
+        locked: false,
+      });
+    }
+
+    return res.status(httpStatus.OK).json({ success: true, locked: false });
+  } catch (error) {
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+export const assignCohost = async (req, res) => {
+  try {
+    const meetingId = String(req.params?.id || "").trim();
+    if (!mongoose.isValidObjectId(meetingId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: "Invalid meeting id" });
+    }
+
+    const targetUserId = String(req.body?.userId || "").trim();
+    if (!mongoose.isValidObjectId(targetUserId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: "userId is required" });
+    }
+
+    const action = String(req.body?.action || "assign").toLowerCase();
+    const isRemove = action === "remove" || action === "unassign";
+
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      return res.status(httpStatus.NOT_FOUND).json({ success: false, message: "Meeting not found" });
+    }
+
+    const role = getMeetingRole(meeting, req.user?._id);
+    if (role !== "host") {
+      return res.status(httpStatus.FORBIDDEN).json({ success: false, message: "Only host can manage co-hosts" });
+    }
+
+    const hostId = toIdString(getHostId(meeting));
+    if (hostId && hostId === toIdString(targetUserId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: "Host cannot be a co-host" });
+    }
+
+    if (!meeting.hostId) meeting.hostId = meeting.user_id;
+    if (!Array.isArray(meeting.coHosts)) meeting.coHosts = [];
+    if (!Array.isArray(meeting.participants)) meeting.participants = [];
+
+    const existsCohost = hasUserId(meeting.coHosts, targetUserId);
+    if (isRemove) {
+      if (existsCohost) {
+        meeting.coHosts = meeting.coHosts.filter((id) => toIdString(id) !== toIdString(targetUserId));
+      }
+    } else {
+      if (!existsCohost) meeting.coHosts.push(targetUserId);
+    }
+
+    // Sync participant role metadata
+    const pIdx = meeting.participants.findIndex((p) => toIdString(p?.userId) === toIdString(targetUserId));
+    if (pIdx >= 0) {
+      meeting.participants[pIdx].role = isRemove ? "participant" : "cohost";
+    } else {
+      meeting.participants.push({
+        userId: targetUserId,
+        role: isRemove ? "participant" : "cohost",
+        joinedAt: new Date(),
+        lastJoinedAt: new Date(),
+        lastLeftAt: null,
+      });
+    }
+
+    await meeting.save();
+
+    const io = getIO();
+    if (io) {
+      io.to(String(meeting.meetingCode)).emit("meeting-roles-updated", serializeRoles(meeting));
+    }
+
+    return res.status(httpStatus.OK).json({
+      success: true,
+      roles: serializeRoles(meeting),
     });
   } catch (error) {
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
@@ -227,110 +449,4 @@ export const deleteMeeting = async (req, res) => {
   }
 };
 
-export const getMeetingHistory = async (req, res) => {
-  try {
-    const activeCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
-
-    // Find meeting codes the current user has participated in
-    const userMeetingCodes = await MeetingActivity.distinct("meetingCode", { userId: req.user._id });
-    if (!userMeetingCodes.length) {
-      return res.status(httpStatus.OK).json({ success: true, history: [] });
-    }
-
-    // Aggregate per meetingCode: start/end, distinct participants
-    const aggregates = await MeetingActivity.aggregate([
-      { $match: { meetingCode: { $in: userMeetingCodes } } },
-      {
-        $group: {
-          _id: "$meetingCode",
-          title: { $max: "$title" },
-          firstJoin: { $min: { $ifNull: ["$joinedAt", "$createdAt"] } },
-          lastLeave: {
-            $max: {
-              $ifNull: ["$leftAt", { $ifNull: ["$joinedAt", "$createdAt"] }],
-            },
-          },
-          inProgress: {
-            $max: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ["$leftAt", null] },
-                    { $gte: [{ $ifNull: ["$joinedAt", "$createdAt"] }, activeCutoff] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          participantIds: { $addToSet: "$userId" },
-          participantNames: {
-            $addToSet: {
-              $cond: [
-                { $and: [{ $ne: ["$username", null] }, { $ne: ["$username", ""] }] },
-                "$username",
-                null,
-              ],
-            },
-          },
-        },
-      },
-      { $sort: { lastLeave: -1 } },
-      { $limit: 50 },
-    ]);
-
-    const codes = aggregates.map((a) => a._id);
-    const meetings = await Meeting.find({ meetingCode: { $in: codes } })
-      .populate({ path: "user_id", select: "_id username" })
-      .lean();
-
-    const meetingByCode = new Map(meetings.map((m) => [String(m.meetingCode), m]));
-
-    const history = aggregates.map((a) => {
-      const meeting = meetingByCode.get(String(a._id));
-      const hostUser = meeting?.user_id;
-
-      const startedAt = a.firstJoin ? new Date(a.firstJoin) : null;
-      const inProgress = Boolean(a.inProgress);
-      const endedAt = inProgress ? null : a.lastLeave ? new Date(a.lastLeave) : startedAt;
-      const durationEnd = inProgress ? new Date() : endedAt;
-      const durationMs =
-        startedAt && durationEnd ? Math.max(0, durationEnd.getTime() - startedAt.getTime()) : 0;
-      const actualDurationMinutes = Math.max(0, Math.round(durationMs / 60000));
-
-      const participantCount = Array.isArray(a.participantIds) ? a.participantIds.length : 0;
-      const participantUsernames = Array.isArray(a.participantNames)
-        ? a.participantNames.filter(Boolean).slice(0, 12)
-        : [];
-
-      return {
-        meetingId: meeting?._id ? String(meeting._id) : null,
-        meetingCode: String(a._id),
-        title: (meeting?.title || a.title || "Meeting").toString(),
-        scheduledAt: meeting?.date || null,
-        plannedDuration: typeof meeting?.duration === "number" ? meeting.duration : null,
-        host: hostUser
-          ? {
-              id: String(hostUser._id),
-              username: String(hostUser.username || ""),
-            }
-          : null,
-        inProgress,
-        startedAt: startedAt ? startedAt.toISOString() : null,
-        endedAt: endedAt ? endedAt.toISOString() : null,
-        actualDurationMinutes,
-        participantCount,
-        participants: participantUsernames,
-      };
-    });
-
-    return res.status(httpStatus.OK).json({ success: true, history });
-  } catch (error) {
-    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
+// getMeetingHistory removed (MeetingActivity removed)

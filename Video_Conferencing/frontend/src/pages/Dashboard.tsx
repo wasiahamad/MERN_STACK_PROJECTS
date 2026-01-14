@@ -18,12 +18,10 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   useCreateMeeting,
   useDeleteMeeting,
-  useMeetingHistory,
   useMeetings,
   useScheduleMeeting,
   useUpdateMeeting,
   type Meeting,
-  type MeetingHistoryItem,
 } from "@/hooks/use-meetings";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
@@ -63,8 +61,7 @@ export default function Dashboard() {
   const meetingsQuery = useMeetings();
   const meetings = meetingsQuery.data || [];
 
-  const historyQuery = useMeetingHistory();
-  const history = historyQuery.data || [];
+  // Meeting history removed
 
   const createMeeting = useCreateMeeting();
   const scheduleMeeting = useScheduleMeeting();
@@ -101,25 +98,7 @@ export default function Dashboard() {
       .slice(0, 12);
   }, [meetings]);
 
-  const visibleHistory = useMemo(() => {
-    return [...history].slice(0, 12);
-  }, [history]);
-
-  const asManagedMeeting = (h: MeetingHistoryItem): Meeting | null => {
-    if (!h.meetingId) return null;
-    // only allow edit/delete when the current user is the host
-    const hostId = h.host?.id;
-    if (!hostId || hostId !== String(user?.id || "")) return null;
-    return {
-      id: h.meetingId,
-      title: h.title || "Meeting",
-      roomId: h.meetingCode,
-      createdAt: h.startedAt || new Date().toISOString(),
-      scheduledAt: h.scheduledAt || h.startedAt || new Date().toISOString(),
-      duration: h.plannedDuration ?? 45,
-      status: "completed",
-    };
-  };
+  // Recent Activity removed
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -383,75 +362,86 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right: Recent Activity */}
-          <div className="lg:col-span-2">
+          {/* Right: Meetings */}
+          <div className="space-y-6 lg:col-span-2">
             <div className="bg-card rounded-3xl border border-white/5 shadow-2xl shadow-black/20 overflow-hidden">
-              <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                <h2 className="font-display font-bold text-xl">Recent Activity</h2>
-                <div className="text-sm text-muted-foreground">Dashboard</div>
+              <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display font-bold text-xl">Your Meetings</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Join, copy code, edit, or delete meetings.</p>
+                </div>
+                {meetingsQuery.isFetching ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Syncing
+                  </div>
+                ) : null}
               </div>
 
-              <div className="divide-y divide-white/5">
-                {historyQuery.isLoading ? (
-                  <div className="p-10 flex justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              <div className="p-6">
+                {meetingsQuery.isLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading meetings...
                   </div>
-                ) : visibleHistory.length === 0 ? (
-                  <div className="p-12 text-center text-muted-foreground">
-                    <p>No activity yet.</p>
-                    <p className="text-sm mt-2">Join a meeting to see your meeting history here.</p>
+                ) : meetingsQuery.isError ? (
+                  <div className="text-sm text-muted-foreground">
+                    Could not load meetings. Showing saved meetings (if any).
+                  </div>
+                ) : null}
+
+                {visibleMeetings.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-muted-foreground">
+                    No meetings yet. Create a new meeting or schedule one.
                   </div>
                 ) : (
-                  visibleHistory.map((h) => {
-                    const startedAt = h.startedAt ? new Date(h.startedAt) : null;
-                    const endedAt = h.endedAt ? new Date(h.endedAt) : null;
-                    const when = startedAt || (h.scheduledAt ? new Date(h.scheduledAt) : new Date());
-                    const hostName = h.host?.username || "Unknown";
-                    const managed = asManagedMeeting(h);
-                    const planned = typeof h.plannedDuration === "number" ? h.plannedDuration : null;
-                    const actual = Number(h.actualDurationMinutes || 0);
-                    const participantNames = Array.isArray(h.participants) ? h.participants.filter(Boolean) : [];
-                    return (
-                      <div key={`${h.meetingId || "na"}-${h.meetingCode}-${h.startedAt || ""}`} className="p-6 hover:bg-white/5 transition-colors group">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                              <Clock className="w-6 h-6 text-primary" />
+                  <div className="space-y-3">
+                    {visibleMeetings.map((m) => {
+                      const status = m.status || getMeetingStatus(m);
+                      const badgeClass =
+                        status === "completed"
+                          ? "bg-white/10 text-muted-foreground border-white/10"
+                          : status === "scheduled"
+                            ? "bg-primary/15 text-primary border-primary/25"
+                            : "bg-white/10 text-foreground border-white/10";
+                      const statusLabel = status === "completed" ? "Completed" : status === "scheduled" ? "Scheduled" : "Instant";
+
+                      const dateLine = m.scheduledAt
+                        ? `${format(new Date(m.scheduledAt), "PP p")} · ${Number(m.duration || 45)} min`
+                        : `Created ${format(new Date(m.createdAt), "PP p")}`;
+
+                      return (
+                        <div
+                          key={m.id}
+                          className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="font-semibold truncate max-w-[28rem]">{m.title || "Meeting"}</div>
+                              <span className={`text-xs px-2 py-1 rounded-full border ${badgeClass}`}>{statusLabel}</span>
                             </div>
-                            <div>
-                              <div className="font-semibold text-lg">{h.title || "Meeting"}</div>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                Hosted by {hostName}
-                                {planned ? ` • Planned ${planned} mins` : ""}
-                                {h.inProgress ? ` • Live ${actual} mins` : ` • Actual ${actual} mins`}
-                                {` • ${h.participantCount} joined`}
-                              </div>
-                              {participantNames.length ? (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Participants: {participantNames.slice(0, 6).join(", ")}
-                                  {participantNames.length > 6 ? ` +${participantNames.length - 6} more` : ""}
-                                </div>
-                              ) : null}
-                              <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                                <span>{format(when, "MMM d, yyyy")}</span>
-                                <span className="text-white/20">•</span>
-                                <span className="font-mono">{h.meetingCode}</span>
-                                <span
-                                  className={
-                                    h.inProgress
-                                      ? "px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20"
-                                      : "px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20"
-                                  }
-                                >
-                                  {h.inProgress ? "In progress" : "Completed"}
-                                </span>
-                              </div>
+                            <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                              <span className="font-mono tracking-wide">{m.roomId}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(m.roomId)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                                title="Copy meeting code"
+                              >
+                                <Copy className="w-4 h-4" />
+                                Copy
+                              </button>
+                            </div>
+                            <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              <span>{dateLine}</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
-                              onClick={() => setLocation(`/meeting/${h.meetingCode}`)}
+                              type="button"
+                              onClick={() => setLocation(`/meeting/${m.roomId}`)}
                               className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold transition-colors"
                             >
                               Join
@@ -460,37 +450,38 @@ export default function Dashboard() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="p-2 rounded-xl hover:bg-white/10 border border-transparent hover:border-white/10 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                                  type="button"
+                                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
                                   title="More"
                                 >
                                   <MoreVertical className="w-5 h-5" />
                                 </button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-background border border-white/10">
-                                <DropdownMenuItem onClick={() => handleCopy(h.meetingCode)}>
-                                  <Copy className="w-4 h-4 mr-2" /> Copy code
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => setLocation(`/meeting/${m.roomId}`)}>
+                                  <Video className="mr-2 w-4 h-4" />
+                                  Join
                                 </DropdownMenuItem>
-                                {managed ? (
-                                  <>
-                                    <DropdownMenuItem onClick={() => openEdit(managed)}>
-                                      <Pencil className="w-4 h-4 mr-2" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={() => handleDelete(managed)}
-                                      className="text-red-400 focus:text-red-400"
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                ) : null}
+                                <DropdownMenuItem onClick={() => handleCopy(m.roomId)}>
+                                  <Copy className="mr-2 w-4 h-4" />
+                                  Copy code
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => openEdit(m)}>
+                                  <Pencil className="mr-2 w-4 h-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(m)}>
+                                  <Trash2 className="mr-2 w-4 h-4" />
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

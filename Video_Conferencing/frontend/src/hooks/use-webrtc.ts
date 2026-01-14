@@ -2,6 +2,19 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import io, { Socket } from "socket.io-client";
 import type { User } from "./use-auth";
 
+type MeetingRole = "host" | "cohost" | "participant" | "none";
+
+type MeetingRolesSnapshot = {
+  meetingId: string;
+  roomId: string;
+  locked: boolean;
+  hostId: string;
+  coHosts: string[];
+  participants: Array<{ userId: string; role: Exclude<MeetingRole, "none"> }>;
+};
+
+type ParticipantMeta = Record<string, { userId: string; username: string }>;
+
 interface Peer {
   userId: string;
   stream?: MediaStream;
@@ -28,6 +41,11 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [meetingLocked, setMeetingLocked] = useState(false);
+  const [myRole, setMyRole] = useState<MeetingRole>("participant");
+  const [rolesSnapshot, setRolesSnapshot] = useState<MeetingRolesSnapshot | null>(null);
+  const [joinDeniedReason, setJoinDeniedReason] = useState<string | null>(null);
+  const [participantMeta, setParticipantMeta] = useState<ParticipantMeta>({});
   const [chatMessages, setChatMessages] = useState<
     Array<{ id: string; sender: string; text: string; at: string; isSelf: boolean }>
   >([]);
@@ -35,6 +53,18 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Record<string, Peer>>({});
   const localStreamRef = useRef<MediaStream | null>(null);
+
+  const setAudioEnabled = useCallback(
+    (enabled: boolean) => {
+      const stream = localStreamRef.current;
+      if (!stream) return;
+      stream.getAudioTracks().forEach((t) => {
+        t.enabled = enabled;
+      });
+      setIsMuted(!enabled);
+    },
+    [setIsMuted]
+  );
 
   // Initialize Socket and Media
   useEffect(() => {
@@ -157,6 +187,45 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         peersRef.current = newPeers;
         setPeers(newPeers);
       }
+
+      setParticipantMeta((prev) => {
+        if (!prev[userId]) return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    });
+
+    // Additive: participant identity metadata for UI (maps socketId -> userId/username)
+    socket.on("participants-meta", (rows: Array<{ socketId: string; userId: string; username: string }>) => {
+      if (!Array.isArray(rows)) return;
+      setParticipantMeta((prev) => {
+        const next = { ...prev };
+        for (const r of rows) {
+          if (!r?.socketId) continue;
+          next[String(r.socketId)] = { userId: String(r.userId || ""), username: String(r.username || "") };
+        }
+        return next;
+      });
+    });
+
+    socket.on("participant-meta", (row: { socketId: string; userId: string; username: string }) => {
+      if (!row?.socketId) return;
+      setParticipantMeta((prev) => ({
+        ...prev,
+        [String(row.socketId)]: { userId: String(row.userId || ""), username: String(row.username || "") },
+      }));
+    });
+
+    socket.on("participant-meta-removed", (row: { socketId: string }) => {
+      const sid = row?.socketId ? String(row.socketId) : "";
+      if (!sid) return;
+      setParticipantMeta((prev) => {
+        if (!prev[sid]) return prev;
+        const next = { ...prev };
+        delete next[sid];
+        return next;
+      });
     });
 
     socket.on("chat-message", (data: string, sender: string, senderSocketId?: string) => {
@@ -175,15 +244,95 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
       ]);
     });
 
+    // Additive: meeting lock + role sync (no impact on WebRTC signaling)
+    socket.on("meeting-lock-state", (payload: { roomId?: string; locked?: boolean }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      setMeetingLocked(Boolean(payload?.locked));
+    });
+
+    socket.on("meeting-locked", (payload: { roomId?: string; locked?: boolean }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      setMeetingLocked(true);
+    });
+
+    socket.on("meeting-unlocked", (payload: { roomId?: string; locked?: boolean }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      setMeetingLocked(false);
+    });
+
+    socket.on("meeting-role", (payload: { roomId?: string; role?: MeetingRole }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      const role = payload?.role;
+      if (role === "host" || role === "cohost" || role === "participant" || role === "none") {
+        setMyRole(role);
+      }
+    });
+
+    socket.on("meeting-roles-updated", (snapshot: MeetingRolesSnapshot) => {
+      if (!snapshot?.roomId) return;
+      if (String(snapshot.roomId) !== roomId) return;
+      setRolesSnapshot(snapshot);
+      setMeetingLocked(Boolean(snapshot.locked));
+    });
+
+    socket.on("join-denied", (payload: { roomId?: string; reason?: string }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      setJoinDeniedReason(String(payload?.reason || "unknown"));
+    });
+
+    socket.on("meeting-mute-all", (payload: { roomId?: string }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      // best-effort: locally mute
+      setAudioEnabled(false);
+    });
+
+    socket.on("meeting-mute", (payload: { roomId?: string }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      setAudioEnabled(false);
+    });
+
+    socket.on("meeting-kicked", (payload: { roomId?: string; reason?: string; by?: string }) => {
+      if (payload?.roomId && String(payload.roomId) !== roomId) return;
+      // Stop media + disconnect; Meeting page can redirect based on this state.
+      setJoinDeniedReason(payload?.reason ? `kicked:${payload.reason}` : "kicked");
+      try {
+        localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {
+        // ignore
+      }
+      try {
+        Object.values(peersRef.current).forEach((p) => p.connection.close());
+      } catch {
+        // ignore
+      }
+      try {
+        socket.disconnect();
+      } catch {
+        // ignore
+      }
+    });
+
     return () => {
       socket.off("user-connected");
       socket.off("offer");
       socket.off("answer");
       socket.off("ice-candidate");
       socket.off("user-disconnected");
+      socket.off("participants-meta");
+      socket.off("participant-meta");
+      socket.off("participant-meta-removed");
       socket.off("chat-message");
+      socket.off("meeting-lock-state");
+      socket.off("meeting-locked");
+      socket.off("meeting-unlocked");
+      socket.off("meeting-role");
+      socket.off("meeting-roles-updated");
+      socket.off("join-denied");
+      socket.off("meeting-mute-all");
+      socket.off("meeting-mute");
+      socket.off("meeting-kicked");
     };
-  }, [createPeer]);
+  }, [createPeer, roomId, setAudioEnabled]);
 
   const sendChatMessage = useCallback(
     (text: string) => {
@@ -198,10 +347,8 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   // Controls
   const toggleMute = () => {
     if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = !track.enabled;
-      });
-      setIsMuted(!isMuted);
+      const nextEnabled = isMuted; // if currently muted, enable; else disable
+      setAudioEnabled(nextEnabled);
     }
   };
 
@@ -256,13 +403,24 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   return {
     localStream,
     peers: Object.values(peers),
+    socketId: socketRef.current?.id || null,
+    participantMeta,
+    meeting: {
+      locked: meetingLocked,
+      role: myRole,
+      roles: rolesSnapshot,
+      joinDeniedReason,
+    },
     controls: {
       isMuted,
       isVideoOff,
       isScreenSharing,
       toggleMute,
       toggleVideo,
-      shareScreen
+      shareScreen,
+      muteAll: () => socketRef.current?.emit("host-mute-all"),
+      requestMute: (targetSocketId: string) => socketRef.current?.emit("request-mute", targetSocketId),
+      kickParticipant: (targetSocketId: string) => socketRef.current?.emit("kick-participant", targetSocketId),
     },
     chat: {
       messages: chatMessages,
