@@ -13,8 +13,30 @@ const server = createServer(app);
 
 initSocket(server);
 
+function parseAllowedOrigins() {
+    const raw = String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
+    const defaults = ["http://localhost:5173", "http://localhost:3000"];
+    if (!raw) return defaults;
+    const list = raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    return list.length ? list : defaults;
+}
+
+const allowedOrigins = parseAllowedOrigins();
+
 // Middleware
-app.use(cors());
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            // allow non-browser clients (no Origin header)
+            if (!origin) return callback(null, true);
+            return callback(null, allowedOrigins.includes(origin));
+        },
+        credentials: true,
+    })
+);
 app.use(express.json({limit: '40kb'}));
 app.use(express.urlencoded({limit: '40kb', extended: true }));
 

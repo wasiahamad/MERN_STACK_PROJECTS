@@ -70,7 +70,11 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   useEffect(() => {
     if (!user || !roomId) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL ||
+      import.meta.env.VITE_BACKEND_URL ||
+      import.meta.env.VITE_API_URL ||
+      "http://localhost:5000";
 
     // Connect to Socket.IO (assuming server is on same host)
     socketRef.current = io(socketUrl, {

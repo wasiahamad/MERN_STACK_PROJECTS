@@ -1,0 +1,37 @@
+services:
+  # Backend (Node Web Service)
+  - type: web
+    name: video-conferencing-backend
+    env: node
+    rootDir: Video_Conferencing/backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these in Render dashboard (do not commit secrets)
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # Put your static site URL here after frontend deploy, e.g. https://video-conferencing-frontend.onrender.com
+      - key: FRONTEND_URL
+        sync: false
+
+  # Frontend (Vite Static Site)
+  - type: web
+    name: video-conferencing-frontend
+    env: static
+    rootDir: Video_Conferencing/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set this to your backend URL, e.g. https://video-conferencing-backend.onrender.com
+      - key: VITE_BACKEND_URL
+        sync: false
+      # Optional: if you want socket on a different host/path
+      - key: VITE_SOCKET_URL
+        sync: false

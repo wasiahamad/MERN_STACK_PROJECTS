@@ -29,7 +29,7 @@ function writeMeetings(meetings: Meeting[]) {
 }
 
 function getApiBaseUrl() {
-  return import.meta.env.VITE_API_URL || "http://localhost:5000";
+  return import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:5000";
 }
 
 function makeId(length = 10) {

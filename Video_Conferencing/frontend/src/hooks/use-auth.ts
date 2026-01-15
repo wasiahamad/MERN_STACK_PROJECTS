@@ -15,7 +15,7 @@ export type InsertUser = {
 const AUTH_STORAGE_KEY = "vc_auth";
 
 function getApiBaseUrl() {
-  return import.meta.env.VITE_API_URL || "http://localhost:5000";
+  return import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:5000";
 }
 
 function readStoredAuth(): { token: string; user: User } | null {

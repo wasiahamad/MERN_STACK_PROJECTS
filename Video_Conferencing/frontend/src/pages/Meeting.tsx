@@ -135,7 +135,8 @@ export default function Meeting() {
     });
   }, [meetingState.roles, participantMeta, peers, socketId]);
 
-  const getApiBaseUrl = () => (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
+  const getApiBaseUrl = () =>
+    (import.meta as any).env?.VITE_BACKEND_URL || (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
 
   const toggleLock = async () => {
     if (!token) return;

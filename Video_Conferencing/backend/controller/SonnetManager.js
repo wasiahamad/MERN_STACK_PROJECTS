@@ -18,11 +18,26 @@ function hasUserId(list, userId) {
 }
 
 export const initSocket = (httpServer) => {
+    const parseAllowedOrigins = () => {
+        const raw = String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
+        const defaults = ["http://localhost:5173", "http://localhost:3000"];
+        if (!raw) return defaults;
+        const list = raw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        return list.length ? list : defaults;
+    };
+
+    const allowedOrigins = parseAllowedOrigins();
+
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.CLIENT_URL || ['http://localhost:5173', 'http://localhost:3000'],
+            origin: allowedOrigins,
             methods: ['GET', 'POST'],
+            credentials: true,
         },
+        transports: ['websocket'],
     });
 
     ioRef = io;
