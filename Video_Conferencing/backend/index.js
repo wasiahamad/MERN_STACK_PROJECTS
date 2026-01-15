@@ -13,18 +13,30 @@ const server = createServer(app);
 
 initSocket(server);
 
+function normalizeOrigin(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+        return new URL(raw).origin;
+    } catch {
+        return raw.replace(/\/+$/, "");
+    }
+}
+
 function parseAllowedOrigins() {
     const raw = String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
     const defaults = ["http://localhost:5173", "http://localhost:3000"];
     if (!raw) return defaults;
     const list = raw
         .split(",")
-        .map((s) => s.trim())
+        .map((s) => normalizeOrigin(s))
         .filter(Boolean);
-    return list.length ? list : defaults;
+    const normalizedDefaults = defaults.map(normalizeOrigin);
+    return list.length ? list : normalizedDefaults;
 }
 
 const allowedOrigins = parseAllowedOrigins();
+const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
 
 // Middleware
 app.use(
@@ -32,7 +44,8 @@ app.use(
         origin: (origin, callback) => {
             // allow non-browser clients (no Origin header)
             if (!origin) return callback(null, true);
-            return callback(null, allowedOrigins.includes(origin));
+            const normalized = normalizeOrigin(origin);
+            return callback(null, allowedOriginSet.has(normalized));
         },
         credentials: true,
     })

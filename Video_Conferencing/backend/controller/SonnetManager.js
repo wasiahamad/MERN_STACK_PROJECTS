@@ -18,22 +18,38 @@ function hasUserId(list, userId) {
 }
 
 export const initSocket = (httpServer) => {
+    const normalizeOrigin = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        try {
+            return new URL(raw).origin;
+        } catch {
+            return raw.replace(/\/+$/, "");
+        }
+    };
+
     const parseAllowedOrigins = () => {
         const raw = String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
         const defaults = ["http://localhost:5173", "http://localhost:3000"];
         if (!raw) return defaults;
         const list = raw
             .split(",")
-            .map((s) => s.trim())
+            .map((s) => normalizeOrigin(s))
             .filter(Boolean);
-        return list.length ? list : defaults;
+        const normalizedDefaults = defaults.map(normalizeOrigin);
+        return list.length ? list : normalizedDefaults;
     };
 
     const allowedOrigins = parseAllowedOrigins();
+    const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
 
     const io = new Server(httpServer, {
         cors: {
-            origin: allowedOrigins,
+            origin: (origin, callback) => {
+                if (!origin) return callback(null, true);
+                const normalized = normalizeOrigin(origin);
+                return callback(null, allowedOriginSet.has(normalized));
+            },
             methods: ['GET', 'POST'],
             credentials: true,
         },
