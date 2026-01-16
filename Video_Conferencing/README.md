@@ -2,6 +2,10 @@
 
 A full-stack MERN (MongoDB, Express.js, React, Node.js) video conferencing application with real-time communication powered by WebRTC and Socket.IO.
 
+## 🌐 Live Demo
+
+**[View Live Application](https://mern-stack-projects-1-ubii.onrender.com)**
+
 ## 🚀 Features
 
 ### Backend Features
