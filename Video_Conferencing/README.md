@@ -86,11 +86,11 @@ http://localhost:5000/api
 ### Prerequisites
 - Node.js (v16 or higher)
 - MongoDB (local or Atlas)
-- npm or yarn
+- npm
 
 ### Clone the Repository
 ```bash
-git clone https://github.com/yourusername/Video_Conferencing.git
+git clone https://github.com/wasiahamad/MERN_STACK_PROJECTS
 cd Video_Conferencing
 ```
 
