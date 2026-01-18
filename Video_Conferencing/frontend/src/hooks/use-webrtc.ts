@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import io, { Socket } from "socket.io-client";
 import type { User } from "./use-auth";
+import { toast } from "@/hooks/use-toast";
 
 type MeetingRole = "host" | "cohost" | "participant" | "none";
 
@@ -49,6 +50,11 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   const [chatMessages, setChatMessages] = useState<
     Array<{ id: string; sender: string; text: string; at: string; isSelf: boolean }>
   >([]);
+
+  const [connectionStatus, setConnectionStatus] = useState<
+    "idle" | "connecting" | "connected" | "reconnecting" | "error"
+  >("idle");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Record<string, Peer>>({});
@@ -77,12 +83,66 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
       "http://localhost:5000";
 
     // Connect to Socket.IO (assuming server is on same host)
+    setConnectionStatus("connecting");
+    setConnectionError(null);
+
     socketRef.current = io(socketUrl, {
       path: "/socket.io",
-      transports: ["websocket"],
-      query: { roomId, userId: user.id.toString() },
+      transports: ["websocket", "polling"],
+      query: { roomId, userId: user.id.toString(), username: user.username || "" },
       auth: token ? { token } : undefined,
     });
+
+    const socket = socketRef.current;
+
+    const onConnect = () => {
+      setConnectionStatus("connected");
+      setConnectionError(null);
+    };
+
+    const onDisconnect = (reason: string) => {
+      // socket.io disconnect reasons can be 'transport close', 'io server disconnect', etc.
+      setConnectionStatus("reconnecting");
+      setConnectionError(reason || "disconnected");
+    };
+
+    const onConnectError = (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err ?? "connect_error");
+      setConnectionStatus("error");
+      setConnectionError(message);
+      toast({
+        title: "Connection issue",
+        description: `Unable to connect to meeting server. ${message}`,
+        variant: "destructive",
+      });
+    };
+
+    const onReconnectAttempt = () => {
+      setConnectionStatus("reconnecting");
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onConnectError);
+    socket.io.on("reconnect_attempt", onReconnectAttempt);
+
+    const onOffline = () => {
+      toast({
+        title: "Network offline",
+        description: "You are offline. Please check your internet connection.",
+        variant: "destructive",
+      });
+    };
+
+    const onOnline = () => {
+      toast({
+        title: "Back online",
+        description: "Internet connection restored.",
+      });
+    };
+
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
 
     const initMedia = async () => {
       try {
@@ -98,12 +158,29 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         });
       } catch (err) {
         console.error("Error accessing media devices:", err);
+        toast({
+          title: "Camera/Mic blocked",
+          description: "Please allow camera/microphone permissions and retry.",
+          variant: "destructive",
+        });
       }
     };
 
     initMedia();
 
     return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+
+      try {
+        socket.off("connect", onConnect);
+        socket.off("disconnect", onDisconnect);
+        socket.off("connect_error", onConnectError);
+        socket.io.off("reconnect_attempt", onReconnectAttempt);
+      } catch {
+        // ignore
+      }
+
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       Object.values(peersRef.current).forEach(p => p.connection.close());
       socketRef.current?.disconnect();
@@ -148,19 +225,28 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     const socket = socketRef.current;
     if (!socket) return;
 
-    socket.on("user-connected", async (userId: string) => {
+    const ensureOfferTo = async (targetSocketId: string) => {
+      const target = String(targetSocketId || "");
+      if (!target) return;
       if (!localStreamRef.current) return;
-      const connection = createPeer(userId, true, localStreamRef.current);
-      
+      if (target === socket.id) return;
+      if (peersRef.current[target]) return;
+
+      const connection = createPeer(target, true, localStreamRef.current);
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
-      
-      socket.emit("offer", { target: userId, offer });
+      socket.emit("offer", { target, offer });
+    };
+
+    socket.on("user-connected", async (socketId: string) => {
+      // On this project, server sends user-connected ONLY to the joiner with existing socketIds.
+      // So the joiner initiates offers; existing peers only respond to offers.
+      await ensureOfferTo(socketId);
     });
 
     socket.on("offer", async ({ sender, offer }) => {
       if (!localStreamRef.current) return;
-      const connection = createPeer(sender, false, localStreamRef.current);
+      const connection = peersRef.current[String(sender)]?.connection || createPeer(sender, false, localStreamRef.current);
       
       await connection.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await connection.createAnswer();
@@ -409,6 +495,10 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     peers: Object.values(peers),
     socketId: socketRef.current?.id || null,
     participantMeta,
+    connection: {
+      status: connectionStatus,
+      error: connectionError,
+    },
     meeting: {
       locked: meetingLocked,
       role: myRole,

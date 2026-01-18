@@ -30,14 +30,12 @@ export const initSocket = (httpServer) => {
 
     const parseAllowedOrigins = () => {
         const raw = String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
-        const defaults = ["http://localhost:5173", "http://localhost:3000"];
-        if (!raw) return defaults;
-        const list = raw
+        // If env is not set, allow all origins (needed for deployments unless configured)
+        if (!raw) return [];
+        return raw
             .split(",")
             .map((s) => normalizeOrigin(s))
             .filter(Boolean);
-        const normalizedDefaults = defaults.map(normalizeOrigin);
-        return list.length ? list : normalizedDefaults;
     };
 
     const allowedOrigins = parseAllowedOrigins();
@@ -48,12 +46,15 @@ export const initSocket = (httpServer) => {
             origin: (origin, callback) => {
                 if (!origin) return callback(null, true);
                 const normalized = normalizeOrigin(origin);
-                return callback(null, allowedOriginSet.has(normalized));
+                // No allowlist configured => allow all
+                if (allowedOriginSet.size === 0) return callback(null, true);
+                if (allowedOriginSet.has(normalized)) return callback(null, true);
+                return callback(new Error("Not allowed by CORS"), false);
             },
             methods: ['GET', 'POST'],
             credentials: true,
         },
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
     });
 
     ioRef = io;

@@ -15,7 +15,7 @@ export function VideoGrid({ localStream, peers }: VideoGridProps) {
       : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
 
   return (
-    <div className={`grid ${gridLayoutClass} gap-4 p-4 h-full max-h-screen overflow-y-auto`}>
+    <div className={`grid ${gridLayoutClass} gap-2 sm:gap-4 p-2 sm:p-4 h-full max-h-screen overflow-y-auto`}>
       {/* Local Video */}
       <VideoTile 
         stream={localStream} 

@@ -18,7 +18,7 @@ export default function Meeting() {
   const { user, token } = useAuth();
   const { data: meeting, isLoading: isMeetingLoading } = useMeeting(roomId);
   
-  const { localStream, peers, controls, chat, meeting: meetingState, socketId, participantMeta } = useWebRTC({ 
+  const { localStream, peers, controls, chat, meeting: meetingState, socketId, participantMeta, connection } = useWebRTC({ 
     roomId, 
     user: user || null,
     token,
@@ -201,8 +201,18 @@ export default function Meeting() {
         {peers.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-black/40 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/5 text-center">
-              <h3 className="text-xl font-bold text-white mb-2">Waiting for others...</h3>
-              <p className="text-gray-400">Share the Room ID: <span className="text-primary font-mono select-all pointer-events-auto cursor-copy font-bold">{roomId}</span></p>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {connection?.status && connection.status !== "connected" ? "Connecting to server..." : "Waiting for others..."}
+              </h3>
+              <p className="text-gray-400">
+                Share the Room ID:{" "}
+                <span className="text-primary font-mono select-all pointer-events-auto cursor-copy font-bold">{roomId}</span>
+              </p>
+              {connection?.status === "error" && connection?.error ? (
+                <p className="text-red-300 text-sm mt-2 max-w-[380px]">
+                  {connection.error}
+                </p>
+              ) : null}
             </div>
           </div>
         )}

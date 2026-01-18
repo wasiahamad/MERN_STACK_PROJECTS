@@ -45,8 +45,9 @@ export function MeetingControls({
   };
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-4 bg-gray-900/90 backdrop-blur-lg px-6 py-4 rounded-2xl border border-white/10 shadow-2xl">
+    <div className="fixed bottom-3 sm:bottom-8 left-0 right-0 z-50 px-3 sm:px-0">
+      <div className="mx-auto w-full max-w-[980px]">
+        <div className="flex items-center gap-3 sm:gap-4 bg-gray-900/90 backdrop-blur-lg px-3 sm:px-6 py-3 sm:py-4 rounded-2xl border border-white/10 shadow-2xl overflow-x-auto">
         <ControlButton
           onClick={onToggleMute}
           icon={isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -102,15 +103,16 @@ export function MeetingControls({
           />
         ) : null}
 
-        <div className="w-px h-10 bg-white/10 mx-2" />
+        <div className="w-px h-10 bg-white/10 mx-1 sm:mx-2 flex-shrink-0" />
 
         <button
           onClick={handleLeave}
-          className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20"
+          className="bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20 flex-shrink-0"
         >
           <PhoneOff className="w-5 h-5" />
           Leave
         </button>
+        </div>
       </div>
     </div>
   );
