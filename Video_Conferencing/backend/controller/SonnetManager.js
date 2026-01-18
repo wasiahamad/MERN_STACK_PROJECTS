@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from "jsonwebtoken";
 import Meeting from "../model/Meeting.model.js";
+import User from "../model/User.model.js";
 
 let ioRef = null;
 
@@ -62,7 +63,7 @@ export const initSocket = (httpServer) => {
     // --- Room state (supports both your current frontend events + Zoom-main events) ---
     const roomToSockets = new Map(); // roomId -> Set<socketId>
     const socketToRoom = new Map(); // socketId -> roomId
-    const roomToParticipantMeta = new Map(); // roomId -> Map<socketId, { userId, username }>
+    const roomToParticipantMeta = new Map(); // roomId -> Map<socketId, { userId, username, name, avatarUrl }>
 
     const readHandshakeToken = (socket) => {
         const authToken = socket?.handshake?.auth?.token;
@@ -259,9 +260,33 @@ export const initSocket = (httpServer) => {
 
         socketsInRoom.add(socket.id);
 
-        // Broadcast participant metadata (socketId -> userId/username) to the room
+        // Broadcast participant metadata (socketId -> userId/username/name/avatarUrl) to the room
         if (socketUser?.id) {
-            const meta = { userId: String(socketUser.id), username: String(socketUser.username || "") };
+            const q = socket?.handshake?.query || {};
+            const fallbackName = typeof q.name === "string" ? String(q.name) : "";
+            const fallbackAvatarUrl = typeof q.avatarUrl === "string" ? String(q.avatarUrl) : "";
+
+            let name = "";
+            let avatarUrl = "";
+
+            // Best-effort DB fetch; if DB is unavailable, UI can still use client-provided fallbacks.
+            try {
+                const dbUser = await User.findById(String(socketUser.id)).select("name avatarUrl username");
+                if (dbUser) {
+                    name = String(dbUser.name || "");
+                    avatarUrl = String(dbUser.avatarUrl || "");
+                    if (!socketUser.username && dbUser.username) socketUser.username = String(dbUser.username);
+                }
+            } catch {
+                // ignore
+            }
+
+            const meta = {
+                userId: String(socketUser.id),
+                username: String(socketUser.username || ""),
+                name: name || fallbackName,
+                avatarUrl: avatarUrl || fallbackAvatarUrl,
+            };
             metaInRoom.set(socket.id, meta);
             io.to(String(roomId)).emit('participant-meta', { socketId: socket.id, ...meta });
         }

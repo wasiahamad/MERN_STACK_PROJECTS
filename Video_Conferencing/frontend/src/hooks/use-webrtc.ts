@@ -14,7 +14,8 @@ type MeetingRolesSnapshot = {
   participants: Array<{ userId: string; role: Exclude<MeetingRole, "none"> }>;
 };
 
-type ParticipantMeta = Record<string, { userId: string; username: string }>;
+type ParticipantMeta = Record<string, { userId: string; username: string; name?: string; avatarUrl?: string }>;
+type ParticipantMetaRow = { socketId: string; userId: string; username: string; name?: string; avatarUrl?: string };
 
 interface Peer {
   userId: string;
@@ -89,7 +90,13 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     socketRef.current = io(socketUrl, {
       path: "/socket.io",
       transports: ["websocket", "polling"],
-      query: { roomId, userId: user.id.toString(), username: user.username || "" },
+      query: {
+        roomId,
+        userId: user.id.toString(),
+        username: user.username || "",
+        name: user.name || "",
+        avatarUrl: user.avatarUrl || "",
+      },
       auth: token ? { token } : undefined,
     });
 
@@ -287,23 +294,33 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     });
 
     // Additive: participant identity metadata for UI (maps socketId -> userId/username)
-    socket.on("participants-meta", (rows: Array<{ socketId: string; userId: string; username: string }>) => {
+    socket.on("participants-meta", (rows: Array<ParticipantMetaRow>) => {
       if (!Array.isArray(rows)) return;
       setParticipantMeta((prev) => {
         const next = { ...prev };
         for (const r of rows) {
           if (!r?.socketId) continue;
-          next[String(r.socketId)] = { userId: String(r.userId || ""), username: String(r.username || "") };
+          next[String(r.socketId)] = {
+            userId: String(r.userId || ""),
+            username: String(r.username || ""),
+            name: typeof r.name === "string" ? r.name : undefined,
+            avatarUrl: typeof r.avatarUrl === "string" ? r.avatarUrl : undefined,
+          };
         }
         return next;
       });
     });
 
-    socket.on("participant-meta", (row: { socketId: string; userId: string; username: string }) => {
+    socket.on("participant-meta", (row: ParticipantMetaRow) => {
       if (!row?.socketId) return;
       setParticipantMeta((prev) => ({
         ...prev,
-        [String(row.socketId)]: { userId: String(row.userId || ""), username: String(row.username || "") },
+        [String(row.socketId)]: {
+          userId: String(row.userId || ""),
+          username: String(row.username || ""),
+          name: typeof row.name === "string" ? row.name : undefined,
+          avatarUrl: typeof row.avatarUrl === "string" ? row.avatarUrl : undefined,
+        },
       }));
     });
 
@@ -444,10 +461,13 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
 
   const toggleVideo = () => {
     if (localStream) {
-      localStream.getVideoTracks().forEach(track => {
-        track.enabled = !track.enabled;
+      const tracks = localStream.getVideoTracks();
+      const currentlyEnabled = tracks.some((t) => t.enabled);
+      const nextEnabled = !currentlyEnabled;
+      tracks.forEach((t) => {
+        t.enabled = nextEnabled;
       });
-      setIsVideoOff(!isVideoOff);
+      setIsVideoOff(!nextEnabled);
     }
   };
 

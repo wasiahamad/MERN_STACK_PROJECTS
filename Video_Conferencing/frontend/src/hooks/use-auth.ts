@@ -4,6 +4,8 @@ export type User = {
   id: string;
   username: string;
   email: string;
+  name?: string;
+  avatarUrl?: string;
 };
 
 export type InsertUser = {
@@ -80,6 +82,8 @@ export function useAuth() {
           id: String(user.id),
           username: String(user.username),
           email: String(user.email),
+          name: typeof user.name === "string" ? user.name : undefined,
+          avatarUrl: typeof user.avatarUrl === "string" ? user.avatarUrl : undefined,
         },
       });
 
@@ -116,6 +120,8 @@ export function useAuth() {
           id: String(user.id),
           username: String(user.username),
           email: String(user.email),
+          name: typeof user.name === "string" ? user.name : undefined,
+          avatarUrl: typeof user.avatarUrl === "string" ? user.avatarUrl : undefined,
         },
       });
 

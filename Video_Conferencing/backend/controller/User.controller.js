@@ -53,6 +53,8 @@ export const register = async (req, res) => {
                 id: newUser._id,
                 username: newUser.username,
                 email: newUser.email,
+                name: newUser.name || "",
+                avatarUrl: newUser.avatarUrl || "",
             },
         });
     } catch (error) {
@@ -109,6 +111,8 @@ export const login = async (req, res) => {
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                name: user.name || "",
+                avatarUrl: user.avatarUrl || "",
             },
             success: true
         });

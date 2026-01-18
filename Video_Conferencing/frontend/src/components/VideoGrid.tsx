@@ -4,10 +4,12 @@ import { User, VideoOff } from "lucide-react";
 
 interface VideoGridProps {
   localStream: MediaStream | null;
-  peers: Array<{ userId: string; stream?: MediaStream }>;
+  peers: Array<{ userId: string; stream?: MediaStream; label?: string; avatarUrl?: string }>;
+  localLabel?: string;
+  localAvatarUrl?: string;
 }
 
-export function VideoGrid({ localStream, peers }: VideoGridProps) {
+export function VideoGrid({ localStream, peers, localLabel = "You", localAvatarUrl }: VideoGridProps) {
   const gridLayoutClass = peers.length === 0 
     ? "grid-cols-1" 
     : peers.length === 1 
@@ -20,7 +22,8 @@ export function VideoGrid({ localStream, peers }: VideoGridProps) {
       <VideoTile 
         stream={localStream} 
         isLocal 
-        label="You" 
+        label={localLabel}
+        avatarUrl={localAvatarUrl}
       />
 
       {/* Remote Peers */}
@@ -29,7 +32,8 @@ export function VideoGrid({ localStream, peers }: VideoGridProps) {
           <VideoTile
             key={peer.userId}
             stream={peer.stream || null}
-            label={`User ${peer.userId}`}
+            label={peer.label || `User ${peer.userId}`}
+            avatarUrl={peer.avatarUrl}
           />
         ))}
       </AnimatePresence>
@@ -37,14 +41,40 @@ export function VideoGrid({ localStream, peers }: VideoGridProps) {
   );
 }
 
-function VideoTile({ stream, isLocal = false, label }: { stream: MediaStream | null; isLocal?: boolean; label: string }) {
+function VideoTile({
+  stream,
+  isLocal = false,
+  label,
+  avatarUrl,
+}: {
+  stream: MediaStream | null;
+  isLocal?: boolean;
+  label: string;
+  avatarUrl?: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const videoTrack = stream?.getVideoTracks?.()?.[0];
+  const hasVideo = Boolean(videoTrack);
+  const videoEnabled = Boolean(videoTrack?.enabled);
+  const shouldShowVideo = Boolean(stream && hasVideo && videoEnabled);
+
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const el = videoRef.current;
+    if (!el) return;
+    if (!stream) return;
+    // Important: when camera is toggled off -> on, the <video> element remounts
+    // but `stream` doesn't change, so we must re-attach srcObject when shown.
+    if (shouldShowVideo) {
+      el.srcObject = stream;
+      const p = el.play?.();
+      if (p && typeof (p as Promise<void>).catch === "function") {
+        (p as Promise<void>).catch(() => {
+          // Autoplay can be blocked on some mobile browsers.
+        });
+      }
     }
-  }, [stream]);
+  }, [stream, shouldShowVideo]);
 
   return (
     <motion.div
@@ -54,7 +84,7 @@ function VideoTile({ stream, isLocal = false, label }: { stream: MediaStream | n
       exit={{ opacity: 0, scale: 0.9 }}
       className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden border border-white/5 shadow-2xl group"
     >
-      {stream ? (
+      {shouldShowVideo ? (
         <video
           ref={videoRef}
           autoPlay
@@ -65,10 +95,18 @@ function VideoTile({ stream, isLocal = false, label }: { stream: MediaStream | n
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
           <div className="flex flex-col items-center gap-3 text-gray-500">
-            <div className="p-4 bg-gray-700/50 rounded-full">
-              <User className="w-12 h-12" />
-            </div>
-            <span className="text-sm font-medium">Connecting...</span>
+            {avatarUrl ? (
+              <div className="w-20 h-20 rounded-full overflow-hidden border border-white/10 shadow-lg">
+                <img src={avatarUrl} alt={label} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-700/50 rounded-full">
+                <User className="w-12 h-12" />
+              </div>
+            )}
+            <span className="text-sm font-medium">
+              {stream ? "Camera Off" : "Connecting..."}
+            </span>
           </div>
         </div>
       )}
@@ -80,7 +118,7 @@ function VideoTile({ stream, isLocal = false, label }: { stream: MediaStream | n
           {label}
         </div>
         
-        {!stream?.getVideoTracks()[0]?.enabled && (
+        {stream && hasVideo && !videoEnabled && (
           <div className="p-2 bg-red-500/20 backdrop-blur-md rounded-lg text-red-500">
             <VideoOff className="w-4 h-4" />
           </div>

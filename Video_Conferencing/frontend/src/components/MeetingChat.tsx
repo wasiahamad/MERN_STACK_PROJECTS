@@ -32,7 +32,7 @@ export function MeetingChat({
 
   return (
     <div className="fixed top-0 right-0 bottom-0 w-full sm:w-[380px] z-40">
-      <div className="h-full bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col">
+      <div className="h-full bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col pb-[calc(env(safe-area-inset-bottom)+8rem)] sm:pb-0">
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10">
           <div className="font-semibold">Meeting Chat</div>
           <button
@@ -71,7 +71,7 @@ export function MeetingChat({
           <div ref={endRef} />
         </div>
 
-        <form onSubmit={handleSend} className="p-4 border-t border-white/10">
+        <form onSubmit={handleSend} className="p-4 border-t border-white/10 bg-background/60 backdrop-blur">
           <div className="flex items-center gap-2">
             <input
               value={text}

@@ -9,6 +9,7 @@ import { MeetingChat } from "@/components/MeetingChat";
 import { MeetingParticipants } from "@/components/MeetingParticipants";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useProfile } from "@/hooks/use-profile";
 
 export default function Meeting() {
   const [match, params] = useRoute<{ roomId: string }>("/meeting/:roomId");
@@ -16,6 +17,8 @@ export default function Meeting() {
   const [, setLocation] = useLocation();
   
   const { user, token } = useAuth();
+  const profileQuery = useProfile();
+  const profile = profileQuery.data;
   const { data: meeting, isLoading: isMeetingLoading } = useMeeting(roomId);
   
   const { localStream, peers, controls, chat, meeting: meetingState, socketId, participantMeta, connection } = useWebRTC({ 
@@ -24,6 +27,19 @@ export default function Meeting() {
     token,
     meetingTitle: meeting?.title || "Meeting",
   });
+
+  const videoPeers = useMemo(() => {
+    return peers.map((p) => {
+      const sid = String(p.userId || "");
+      const meta = sid && participantMeta ? participantMeta[sid] : undefined;
+      const label = meta?.name || meta?.username || (sid ? `User ${sid.slice(0, 6)}` : "User");
+      return {
+        ...p,
+        label,
+        avatarUrl: meta?.avatarUrl || undefined,
+      };
+    });
+  }, [peers, participantMeta]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
@@ -195,8 +211,13 @@ export default function Meeting() {
       </div>
 
       {/* Main Video Area */}
-      <div className="flex-1 overflow-hidden pt-16 pb-24 px-4">
-        <VideoGrid localStream={localStream} peers={peers} />
+      <div className="flex-1 overflow-hidden pt-16 pb-28 sm:pb-24 px-2 sm:px-4">
+        <VideoGrid
+          localStream={localStream}
+          peers={videoPeers}
+          localLabel="You"
+          localAvatarUrl={profile?.avatarUrl || user?.avatarUrl || undefined}
+        />
         
         {peers.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -235,6 +256,7 @@ export default function Meeting() {
         meetingLocked={meetingState.locked}
         onToggleLock={Boolean(token) && canHostControls ? toggleLock : undefined}
         roomId={roomId}
+        rightPanelOpen={chatOpen || participantsOpen}
       />
 
       <MeetingParticipants

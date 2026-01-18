@@ -18,6 +18,7 @@ interface MeetingControlsProps {
   meetingLocked?: boolean;
   onToggleLock?: () => void;
   roomId: string;
+  rightPanelOpen?: boolean;
 }
 
 export function MeetingControls({
@@ -35,6 +36,7 @@ export function MeetingControls({
   onMuteAll,
   meetingLocked = false,
   onToggleLock,
+  rightPanelOpen = false,
 }: MeetingControlsProps) {
   const [, setLocation] = useLocation();
 
@@ -45,33 +47,37 @@ export function MeetingControls({
   };
 
   return (
-    <div className="fixed bottom-3 sm:bottom-8 left-0 right-0 z-50 px-3 sm:px-0">
-      <div className="mx-auto w-full max-w-[980px]">
-        <div className="flex items-center gap-3 sm:gap-4 bg-gray-900/90 backdrop-blur-lg px-3 sm:px-6 py-3 sm:py-4 rounded-2xl border border-white/10 shadow-2xl overflow-x-auto">
+    <div
+      className={`fixed bottom-3 sm:bottom-8 left-0 right-0 z-50 px-3 pb-[env(safe-area-inset-bottom)] ${
+        rightPanelOpen ? "sm:pr-[380px]" : ""
+      }`}
+    >
+      <div className="mx-auto w-full max-w-[760px]">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 sm:gap-4 bg-gray-900/90 backdrop-blur-lg px-3 sm:px-5 py-2.5 sm:py-4 rounded-2xl border border-white/10 shadow-2xl">
         <ControlButton
           onClick={onToggleMute}
-          icon={isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          icon={isMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
           label={isMuted ? "Unmute" : "Mute"}
           variant={isMuted ? "danger" : "secondary"}
         />
 
         <ControlButton
           onClick={onToggleVideo}
-          icon={isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          icon={isVideoOff ? <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Video className="w-4 h-4 sm:w-5 sm:h-5" />}
           label={isVideoOff ? "Start Video" : "Stop Video"}
           variant={isVideoOff ? "danger" : "secondary"}
         />
 
         <ControlButton
           onClick={onShareScreen}
-          icon={isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
+          icon={isScreenSharing ? <MonitorOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5" />}
           label={isScreenSharing ? "Stop Sharing" : "Share Screen"}
           variant={isScreenSharing ? "active" : "secondary"}
         />
 
         <ControlButton
           onClick={onToggleChat}
-          icon={<MessageSquare className="w-5 h-5" />}
+          icon={<MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />}
           label={isChatOpen ? "Close Chat" : "Open Chat"}
           variant={isChatOpen ? "primary" : "secondary"}
         />
@@ -79,7 +85,7 @@ export function MeetingControls({
         {onToggleParticipants ? (
           <ControlButton
             onClick={onToggleParticipants}
-            icon={<Users className="w-5 h-5" />}
+            icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />}
             label={isParticipantsOpen ? "Close Participants" : "Participants"}
             variant={isParticipantsOpen ? "primary" : "secondary"}
           />
@@ -88,7 +94,7 @@ export function MeetingControls({
         {canHostControls && onMuteAll ? (
           <ControlButton
             onClick={onMuteAll}
-            icon={<VolumeX className="w-5 h-5" />}
+            icon={<VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />}
             label="Mute All"
             variant="danger"
           />
@@ -97,20 +103,20 @@ export function MeetingControls({
         {canHostControls && onToggleLock ? (
           <ControlButton
             onClick={onToggleLock}
-            icon={meetingLocked ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+            icon={meetingLocked ? <Lock className="w-4 h-4 sm:w-5 sm:h-5" /> : <LockOpen className="w-4 h-4 sm:w-5 sm:h-5" />}
             label={meetingLocked ? "Unlock Meeting" : "Lock Meeting"}
             variant={meetingLocked ? "active" : "secondary"}
           />
         ) : null}
 
-        <div className="w-px h-10 bg-white/10 mx-1 sm:mx-2 flex-shrink-0" />
+        <div className="hidden sm:block w-px h-10 bg-white/10 mx-1" />
 
         <button
           onClick={handleLeave}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20 flex-shrink-0"
+          className="bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/20"
         >
-          <PhoneOff className="w-5 h-5" />
-          Leave
+          <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Leave</span>
         </button>
         </div>
       </div>
@@ -139,7 +145,7 @@ function ControlButton({
   return (
     <button
       onClick={onClick}
-      className={`p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${variants[variant]}`}
+      className={`p-2.5 sm:p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${variants[variant]}`}
       title={label}
     >
       {icon}
