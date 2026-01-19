@@ -63,7 +63,7 @@ export const initSocket = (httpServer) => {
     // --- Room state (supports both your current frontend events + Zoom-main events) ---
     const roomToSockets = new Map(); // roomId -> Set<socketId>
     const socketToRoom = new Map(); // socketId -> roomId
-    const roomToParticipantMeta = new Map(); // roomId -> Map<socketId, { userId, username, name, avatarUrl }>
+    const roomToParticipantMeta = new Map(); // roomId -> Map<socketId, { userId, username, name, avatarUrl, videoEnabled }>
 
     const readHandshakeToken = (socket) => {
         const authToken = socket?.handshake?.auth?.token;
@@ -286,9 +286,13 @@ export const initSocket = (httpServer) => {
                 username: String(socketUser.username || ""),
                 name: name || fallbackName,
                 avatarUrl: avatarUrl || fallbackAvatarUrl,
+                videoEnabled: true,
             };
             metaInRoom.set(socket.id, meta);
             io.to(String(roomId)).emit('participant-meta', { socketId: socket.id, ...meta });
+
+            // Also broadcast initial video state so UIs can show camera-off correctly.
+            io.to(String(roomId)).emit('video-state', { socketId: socket.id, videoEnabled: true });
         }
 
         // MeetingActivity removed (no history tracking)
@@ -360,6 +364,26 @@ export const initSocket = (httpServer) => {
         socket.on('ice-candidate', ({ target, candidate }) => {
             if (!target || !candidate) return;
             io.to(String(target)).emit('ice-candidate', { sender: socket.id, candidate });
+        });
+
+        // Camera on/off status (UI only)
+        socket.on('video-state', ({ videoEnabled }) => {
+            const roomId = socketToRoom.get(socket.id);
+            if (!roomId) return;
+            const enabled = Boolean(videoEnabled);
+
+            try {
+                const metaInRoom = roomToParticipantMeta.get(String(roomId));
+                const row = metaInRoom?.get(socket.id);
+                if (row) {
+                    row.videoEnabled = enabled;
+                    metaInRoom.set(socket.id, row);
+                }
+            } catch {
+                // ignore
+            }
+
+            io.to(String(roomId)).emit('video-state', { socketId: socket.id, videoEnabled: enabled });
         });
 
         // Zoom-main events (aliases)

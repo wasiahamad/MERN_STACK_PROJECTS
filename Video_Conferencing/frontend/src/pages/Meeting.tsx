@@ -21,7 +21,7 @@ export default function Meeting() {
   const profile = profileQuery.data;
   const { data: meeting, isLoading: isMeetingLoading } = useMeeting(roomId);
   
-  const { localStream, peers, controls, chat, meeting: meetingState, socketId, participantMeta, connection } = useWebRTC({ 
+  const { localStream, peers, controls, chat, meeting: meetingState, socketId, participantMeta, connection, videoState } = useWebRTC({ 
     roomId, 
     user: user || null,
     token,
@@ -33,13 +33,15 @@ export default function Meeting() {
       const sid = String(p.userId || "");
       const meta = sid && participantMeta ? participantMeta[sid] : undefined;
       const label = meta?.name || meta?.username || (sid ? `User ${sid.slice(0, 6)}` : "User");
+      const signaledVideoEnabled = sid ? videoState?.[sid] : undefined;
       return {
         ...p,
         label,
         avatarUrl: meta?.avatarUrl || undefined,
+        forceCameraOff: signaledVideoEnabled === false,
       };
     });
-  }, [peers, participantMeta]);
+  }, [peers, participantMeta, videoState]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);

@@ -17,6 +17,8 @@ type MeetingRolesSnapshot = {
 type ParticipantMeta = Record<string, { userId: string; username: string; name?: string; avatarUrl?: string }>;
 type ParticipantMetaRow = { socketId: string; userId: string; username: string; name?: string; avatarUrl?: string };
 
+type VideoStateMap = Record<string, boolean>; // socketId -> videoEnabled
+
 interface Peer {
   userId: string;
   stream?: MediaStream;
@@ -63,6 +65,7 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   const [rolesSnapshot, setRolesSnapshot] = useState<MeetingRolesSnapshot | null>(null);
   const [joinDeniedReason, setJoinDeniedReason] = useState<string | null>(null);
   const [participantMeta, setParticipantMeta] = useState<ParticipantMeta>({});
+  const [videoState, setVideoState] = useState<VideoStateMap>({});
   const [chatMessages, setChatMessages] = useState<
     Array<{ id: string; sender: string; text: string; at: string; isSelf: boolean }>
   >([]);
@@ -407,6 +410,20 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         delete next[sid];
         return next;
       });
+
+      setVideoState((prev) => {
+        if (!prev[sid] && prev[sid] !== false) return prev;
+        const next = { ...prev };
+        delete next[sid];
+        return next;
+      });
+    });
+
+    // Broadcasted when someone toggles camera
+    socket.on("video-state", (payload: { socketId?: string; videoEnabled?: boolean }) => {
+      const sid = payload?.socketId ? String(payload.socketId) : "";
+      if (!sid) return;
+      setVideoState((prev) => ({ ...prev, [sid]: Boolean(payload.videoEnabled) }));
     });
 
     socket.on("chat-message", (data: string, sender: string, senderSocketId?: string) => {
@@ -504,6 +521,7 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
       socket.off("participants-meta");
       socket.off("participant-meta");
       socket.off("participant-meta-removed");
+      socket.off("video-state");
       socket.off("chat-message");
       socket.off("meeting-lock-state");
       socket.off("meeting-locked");
@@ -544,6 +562,12 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         t.enabled = nextEnabled;
       });
       setIsVideoOff(!nextEnabled);
+
+      const sid = socketRef.current?.id;
+      if (sid) {
+        setVideoState((prev) => ({ ...prev, [String(sid)]: Boolean(nextEnabled) }));
+        socketRef.current?.emit("video-state", { videoEnabled: Boolean(nextEnabled) });
+      }
     }
   };
 
@@ -591,6 +615,7 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     peers: Object.values(peers),
     socketId: socketRef.current?.id || null,
     participantMeta,
+    videoState,
     connection: {
       status: connectionStatus,
       error: connectionError,

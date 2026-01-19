@@ -4,7 +4,7 @@ import { User, VideoOff } from "lucide-react";
 
 interface VideoGridProps {
   localStream: MediaStream | null;
-  peers: Array<{ userId: string; stream?: MediaStream; label?: string; avatarUrl?: string }>;
+  peers: Array<{ userId: string; stream?: MediaStream; label?: string; avatarUrl?: string; forceCameraOff?: boolean }>;
   localLabel?: string;
   localAvatarUrl?: string;
 }
@@ -34,6 +34,7 @@ export function VideoGrid({ localStream, peers, localLabel = "You", localAvatarU
             stream={peer.stream || null}
             label={peer.label || `User ${peer.userId}`}
             avatarUrl={peer.avatarUrl}
+            forceCameraOff={peer.forceCameraOff}
           />
         ))}
       </AnimatePresence>
@@ -46,18 +47,20 @@ function VideoTile({
   isLocal = false,
   label,
   avatarUrl,
+  forceCameraOff,
 }: {
   stream: MediaStream | null;
   isLocal?: boolean;
   label: string;
   avatarUrl?: string;
+  forceCameraOff?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const videoTrack = stream?.getVideoTracks?.()?.[0];
   const hasVideo = Boolean(videoTrack);
   const videoEnabled = Boolean(videoTrack?.enabled);
-  const shouldShowVideo = Boolean(stream && hasVideo && videoEnabled);
+  const shouldShowVideo = Boolean(stream && hasVideo && videoEnabled && !forceCameraOff);
 
   useEffect(() => {
     const el = videoRef.current;
