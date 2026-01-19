@@ -30,12 +30,27 @@ interface UseWebRTCProps {
   meetingTitle?: string;
 }
 
-const ICE_SERVERS = {
-  iceServers: [
+function buildIceServers(): RTCConfiguration {
+  const iceServers: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-  ],
-};
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+  ];
+
+  const turnUrl = import.meta.env.VITE_TURN_URL as string | undefined;
+  const turnUsername = import.meta.env.VITE_TURN_USERNAME as string | undefined;
+  const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL as string | undefined;
+  if (turnUrl && turnUsername && turnCredential) {
+    iceServers.push({
+      urls: turnUrl,
+      username: turnUsername,
+      credential: turnCredential,
+    });
+  }
+
+  return { iceServers };
+}
 
 export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps) {
   const [peers, setPeers] = useState<Record<string, Peer>>({});
@@ -60,6 +75,9 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Record<string, Peer>>({});
   const localStreamRef = useRef<MediaStream | null>(null);
+  const joinRequestedRef = useRef(false);
+  const joinedRef = useRef(false);
+  const pendingOfferTargetsRef = useRef<Set<string>>(new Set());
 
   const setAudioEnabled = useCallback(
     (enabled: boolean) => {
@@ -87,6 +105,10 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     setConnectionStatus("connecting");
     setConnectionError(null);
 
+    joinRequestedRef.current = false;
+    joinedRef.current = false;
+    pendingOfferTargetsRef.current = new Set();
+
     socketRef.current = io(socketUrl, {
       path: "/socket.io",
       transports: ["websocket", "polling"],
@@ -105,6 +127,12 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     const onConnect = () => {
       setConnectionStatus("connected");
       setConnectionError(null);
+
+      // If media is ready and we previously intended to join, join now.
+      if (joinRequestedRef.current && !joinedRef.current && localStreamRef.current) {
+        joinedRef.current = true;
+        socket.emit("join-room", roomId, { title: meetingTitle || "Meeting" });
+      }
     };
 
     const onDisconnect = (reason: string) => {
@@ -159,10 +187,20 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         });
         setLocalStream(stream);
         localStreamRef.current = stream;
-        
-        socketRef.current?.emit("join-room", roomId, {
-          title: meetingTitle || "Meeting",
-        });
+
+        // Only join once we have media; if socket is already connected, join immediately.
+        joinRequestedRef.current = true;
+        if (socket.connected && !joinedRef.current) {
+          joinedRef.current = true;
+          socket.emit("join-room", roomId, { title: meetingTitle || "Meeting" });
+        }
+
+        // Flush any offer targets we saw before media was ready.
+        const pending = Array.from(pendingOfferTargetsRef.current);
+        pendingOfferTargetsRef.current.clear();
+        for (const sid of pending) {
+          socket.emit("__flush-offer__", sid); // no-op marker (server ignores)
+        }
       } catch (err) {
         console.error("Error accessing media devices:", err);
         toast({
@@ -195,7 +233,7 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
   }, [roomId, user, token, meetingTitle]);
 
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream) => {
-    const connection = new RTCPeerConnection(ICE_SERVERS);
+    const connection = new RTCPeerConnection(buildIceServers());
 
     // Add local tracks to connection
     stream.getTracks().forEach(track => {
@@ -218,6 +256,24 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
         ...prev,
         [targetUserId]: { ...prev[targetUserId], stream: event.streams[0] }
       }));
+    };
+
+    // Help users on poor networks (no TURN / strict NAT)
+    connection.oniceconnectionstatechange = () => {
+      const st = connection.iceConnectionState;
+      if (st === "failed") {
+        toast({
+          title: "Connection issue",
+          description:
+            "WebRTC ICE failed. This usually needs a TURN server on strict networks/hotspots.",
+          variant: "destructive",
+        });
+        try {
+          connection.restartIce();
+        } catch {
+          // ignore
+        }
+      }
     };
 
     const peer: Peer = { userId: targetUserId, connection, stream: undefined };
@@ -246,10 +302,28 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     };
 
     socket.on("user-connected", async (socketId: string) => {
-      // On this project, server sends user-connected ONLY to the joiner with existing socketIds.
-      // So the joiner initiates offers; existing peers only respond to offers.
+      // Server sends existing socketIds to the joiner; joiner initiates offers.
+      // If media isn't ready yet, queue the target so we don't miss the window.
+      if (!localStreamRef.current) {
+        pendingOfferTargetsRef.current.add(String(socketId));
+        return;
+      }
       await ensureOfferTo(socketId);
     });
+
+    // After media becomes ready, flush any queued offer targets.
+    const flushQueuedOffers = async () => {
+      if (!localStreamRef.current) return;
+      const pending = Array.from(pendingOfferTargetsRef.current);
+      pendingOfferTargetsRef.current.clear();
+      for (const sid of pending) {
+        await ensureOfferTo(sid);
+      }
+    };
+
+    // Poll a couple times right after join to avoid race conditions on slower devices.
+    const t1 = window.setTimeout(flushQueuedOffers, 250);
+    const t2 = window.setTimeout(flushQueuedOffers, 1000);
 
     socket.on("offer", async ({ sender, offer }) => {
       if (!localStreamRef.current) return;
@@ -420,6 +494,8 @@ export function useWebRTC({ roomId, user, token, meetingTitle }: UseWebRTCProps)
     });
 
     return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
       socket.off("user-connected");
       socket.off("offer");
       socket.off("answer");
