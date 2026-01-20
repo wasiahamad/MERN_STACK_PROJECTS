@@ -132,7 +132,7 @@ cd frontend
 npm install
 
 # Create .env file (if needed)
-touch .env
+.env
 ```
 
 Add the following environment variable to `.env`:
