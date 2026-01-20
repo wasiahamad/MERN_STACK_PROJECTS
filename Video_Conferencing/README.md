@@ -107,7 +107,7 @@ cd backend
 npm install
 
 # Create .env file
-touch .env
+.env
 ```
 
 Add the following environment variables to `.env`:
