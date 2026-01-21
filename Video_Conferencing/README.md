@@ -10,7 +10,7 @@ A full-stack MERN (MongoDB, Express.js, React, Node.js) video conferencing appli
 
 ### Backend Features
 - **User Authentication**: Secure registration and login with JWT tokens
-- **Meeting Management**: Create, update, and delete video meetings
+- **Meeting Management**: Create, update, get and delete video meetings
 - **Real-time Communication**: WebRTC signaling and Socket.IO integration
 - **Meeting Controls**:
   - Lock/unlock meetings for security
