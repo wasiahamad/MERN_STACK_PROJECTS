@@ -8,6 +8,37 @@ function asNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function ensureOwner(job, userId) {
+  if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
+  if (String(job.recruiterId) !== String(userId)) {
+    throw new ApiError(403, "FORBIDDEN", "Not allowed");
+  }
+}
+
+function mapRecruiterJob(job) {
+  return {
+    id: String(job._id),
+    title: job.title,
+    location: job.location,
+    type: job.type,
+    salaryMin: job.salaryMin,
+    salaryMax: job.salaryMax,
+    experience: job.experience,
+    description: job.description,
+    skills: job.skills,
+    minAiScore: job.minAiScore,
+    requiredCertificates: job.requiredCertificates,
+    status: job.status,
+    companyName: job.companyName,
+    companyWebsite: job.companyWebsite,
+    companyLogo: job.companyLogo,
+    industry: job.industry,
+    companySize: job.companySize,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  };
+}
+
 export const createJob = asyncHandler(async (req, res) => {
   const {
     title,
@@ -66,33 +97,95 @@ export const createJob = asyncHandler(async (req, res) => {
   return created(
     res,
     {
-      job: {
-        id: String(job._id),
-        title: job.title,
-        location: job.location,
-        type: job.type,
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        experience: job.experience,
-        description: job.description,
-        skills: job.skills,
-        minAiScore: job.minAiScore,
-        requiredCertificates: job.requiredCertificates,
-        status: job.status,
-        companyName: job.companyName,
-        companyWebsite: job.companyWebsite,
-        companyLogo: job.companyLogo,
-        industry: job.industry,
-        companySize: job.companySize,
-        createdAt: job.createdAt,
-      },
+      job: mapRecruiterJob(job),
     },
     "Job created"
   );
 });
 
+export const getJob = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const job = await Job.findById(id);
+  ensureOwner(job, req.user._id);
+  return ok(res, { job: mapRecruiterJob(job) }, "Recruiter job");
+});
+
+export const updateJob = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const job = await Job.findById(id);
+  ensureOwner(job, req.user._id);
+
+  const {
+    title,
+    location,
+    type,
+    salaryMin,
+    salaryMax,
+    experience,
+    description,
+    skills,
+    minAiScore,
+    requiredCertificates,
+    status,
+  } = req.body || {};
+
+  if (title !== undefined) job.title = String(title);
+  if (location !== undefined) job.location = String(location);
+  if (type !== undefined) job.type = String(type);
+  if (experience !== undefined) job.experience = typeof experience === "string" ? experience : String(experience);
+  if (description !== undefined) job.description = String(description);
+
+  if (skills !== undefined) {
+    if (!Array.isArray(skills) || skills.length < 1) {
+      throw new ApiError(400, "VALIDATION", "skills must be a non-empty array");
+    }
+    job.skills = skills.map((x) => String(x));
+  }
+
+  // Salary update must preserve a valid range
+  const sMin = salaryMin === undefined ? job.salaryMin : asNumber(salaryMin);
+  const sMax = salaryMax === undefined ? job.salaryMax : asNumber(salaryMax);
+  if (sMin === null || sMax === null || sMin < 0 || sMax < 0 || sMax < sMin) {
+    throw new ApiError(400, "VALIDATION", "Invalid salary range");
+  }
+  job.salaryMin = sMin;
+  job.salaryMax = sMax;
+
+  if (minAiScore !== undefined) {
+    const ai = minAiScore === null ? null : asNumber(minAiScore);
+    if (ai !== null && (ai < 0 || ai > 100)) {
+      throw new ApiError(400, "VALIDATION", "minAiScore must be between 0 and 100");
+    }
+    job.minAiScore = ai;
+  }
+
+  if (requiredCertificates !== undefined) {
+    const certs = Array.isArray(requiredCertificates) ? requiredCertificates : [];
+    job.requiredCertificates = certs.map((x) => String(x));
+  }
+
+  if (status !== undefined) {
+    const st = String(status);
+    if (!["active", "paused", "closed"].includes(st)) {
+      throw new ApiError(400, "VALIDATION", "status must be one of active|paused|closed");
+    }
+    job.status = st;
+  }
+
+  await job.save();
+  return ok(res, { job: mapRecruiterJob(job) }, "Job updated");
+});
+
+export const deleteJob = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const job = await Job.findById(id);
+  ensureOwner(job, req.user._id);
+  await Job.deleteOne({ _id: job._id });
+  return ok(res, { ok: true }, "Job deleted");
+});
+
 export const listJobs = asyncHandler(async (req, res) => {
-  const { status, search, page = 1, pageSize = 10 } = req.query || {};
+  const { status, search, page = 1, pageSize = 10, limit } = req.query || {};
 
   const q = { recruiterId: req.user._id };
   if (status && ["active", "paused", "closed"].includes(String(status))) {
@@ -107,7 +200,7 @@ export const listJobs = asyncHandler(async (req, res) => {
   }
 
   const p = Math.max(1, Number(page) || 1);
-  const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
+  const ps = Math.min(50, Math.max(1, Number(limit ?? pageSize) || 10));
 
   const [items, total] = await Promise.all([
     Job.find(q).sort({ createdAt: -1 }).skip((p - 1) * ps).limit(ps),

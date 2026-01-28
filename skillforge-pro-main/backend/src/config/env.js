@@ -13,7 +13,18 @@ function required(name) {
 export const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: Number(process.env.PORT || 5000),
-  CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:5173",
+  CORS_ORIGIN: (() => {
+    const raw = process.env.CORS_ORIGIN;
+    if (!raw) return "http://localhost:8080";
+
+    const parts = String(raw)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (parts.length <= 1) return parts[0] || "http://localhost:8080";
+    return parts;
+  })(),
 
   MONGO_URI: required("MONGO_URI"),
 

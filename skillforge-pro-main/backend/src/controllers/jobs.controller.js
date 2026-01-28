@@ -3,6 +3,16 @@ import { ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Job } from "../models/Job.js";
 
+function asStringArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((x) => String(x)).filter(Boolean);
+  // Support comma-separated values
+  return String(v)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function formatSalary(job) {
   if (typeof job.salaryMin === "number" && typeof job.salaryMax === "number") {
     return `$${job.salaryMin} - $${job.salaryMax}`;
@@ -36,7 +46,7 @@ function mapJobDetail(job) {
 }
 
 export const listPublicJobs = asyncHandler(async (req, res) => {
-  const { search, location, type, page = 1, pageSize = 10 } = req.query || {};
+  const { search, location, type, page = 1, pageSize = 10, limit, sort, skills } = req.query || {};
 
   const q = { status: "active" };
 
@@ -50,11 +60,22 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
   if (location) q.location = { $regex: String(location), $options: "i" };
   if (type) q.type = String(type);
 
+  const skillsList = asStringArray(skills);
+  if (skillsList.length) {
+    q.skills = { $all: skillsList };
+  }
+
   const p = Math.max(1, Number(page) || 1);
-  const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
+  const ps = Math.min(50, Math.max(1, Number(limit ?? pageSize) || 10));
+
+  const sortBy = (() => {
+    const s = String(sort || "").toLowerCase();
+    if (s === "oldest") return { createdAt: 1 };
+    return { createdAt: -1 };
+  })();
 
   const [items, total] = await Promise.all([
-    Job.find(q).sort({ createdAt: -1 }).skip((p - 1) * ps).limit(ps),
+    Job.find(q).sort(sortBy).skip((p - 1) * ps).limit(ps),
     Job.countDocuments(q),
   ]);
 
@@ -76,4 +97,32 @@ export const getPublicJob = asyncHandler(async (req, res) => {
   if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
 
   return ok(res, { job: mapJobDetail(job) }, "Job");
+});
+
+export const listRecommendedJobs = asyncHandler(async (req, res) => {
+  const { limit } = req.query || {};
+  const max = Math.min(20, Math.max(1, Number(limit) || 3));
+
+  // Simple MVP recommendation:
+  // - Prefer jobs where candidate AI score meets threshold
+  // - Prefer jobs that overlap skills
+  const user = req.user;
+  const candidateSkills = Array.isArray(user?.skills) ? user.skills.map((s) => String(s.name)) : [];
+  const aiScore = typeof user?.aiScore === "number" ? user.aiScore : null;
+
+  const jobs = await Job.find({ status: "active" }).sort({ createdAt: -1 }).limit(100);
+
+  const scored = jobs
+    .map((job) => {
+      const overlap = candidateSkills.length
+        ? job.skills.filter((s) => candidateSkills.includes(String(s))).length
+        : 0;
+      const aiOk = aiScore == null ? 0 : aiScore >= (job.minAiScore ?? 0) ? 1 : -1;
+      return { job, score: overlap * 10 + aiOk * 5 };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, max)
+    .map((x) => mapJobList(x.job));
+
+  return ok(res, { items: scored }, "Recommended jobs");
 });

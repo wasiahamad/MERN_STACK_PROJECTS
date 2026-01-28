@@ -72,13 +72,13 @@ export const applyToJob = asyncHandler(async (req, res) => {
 });
 
 export const listMyApplications = asyncHandler(async (req, res) => {
-  const { status, search, page = 1, pageSize = 10 } = req.query || {};
+  const { status, search, page = 1, pageSize = 10, limit } = req.query || {};
 
   const q = { candidateId: req.user._id };
   if (status) q.status = String(status);
 
   const p = Math.max(1, Number(page) || 1);
-  const ps = Math.min(50, Math.max(1, Number(pageSize) || 10));
+  const ps = Math.min(50, Math.max(1, Number(limit ?? pageSize) || 10));
 
   const apps = await Application.find(q).sort({ createdAt: -1 }).skip((p - 1) * ps).limit(ps);
   const total = await Application.countDocuments(q);
@@ -130,8 +130,15 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
   const { status } = req.body || {};
 
+  const normalized = (() => {
+    const s = String(status || "").toLowerCase();
+    if (s === "new") return "pending";
+    if (s === "reviewed") return "reviewing";
+    return s;
+  })();
+
   const allowed = ["pending", "reviewing", "shortlisted", "interview", "offered", "rejected", "withdrawn"];
-  if (!allowed.includes(String(status))) {
+  if (!allowed.includes(normalized)) {
     throw new ApiError(400, "VALIDATION", "Invalid status");
   }
 
@@ -143,7 +150,7 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
     throw new ApiError(403, "FORBIDDEN", "Not allowed");
   }
 
-  app.status = String(status);
+  app.status = normalized;
   await app.save();
 
   return ok(res, { id: String(app._id), status: app.status }, "Application updated");
