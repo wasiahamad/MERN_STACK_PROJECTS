@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -27,36 +27,116 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { mockJobs, mockCompanies, currentUser } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { useApplyToJob, usePublicJob } from "@/lib/apiHooks";
 
 export default function JobDetail() {
   const { id } = useParams();
+  const { isAuthenticated, user } = useAuth();
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
 
-  const job = mockJobs.find((j) => j.id === id) || mockJobs[0];
-  const company = mockCompanies.find((c) => c.name === job.company) || mockCompanies[0];
+  const { data, isLoading, isError, error } = usePublicJob(id);
+  const job = data?.job;
+  const applyMutation = useApplyToJob(id);
+
+  const formatPosted = (posted: string) => {
+    const d = new Date(posted);
+    if (Number.isNaN(d.getTime())) return posted;
+    return d.toLocaleDateString();
+  };
+
+  const renderLogo = (logo: string) => {
+    if (!logo) return "🏢";
+    return logo;
+  };
 
   const handleApply = async () => {
-    setApplying(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setApplying(false);
-    setApplyModalOpen(false);
-    toast({
-      title: "Application Submitted! 🎉",
-      description: "Your application has been sent successfully. Good luck!",
-    });
+    if (!isAuthenticated) {
+      toast({
+        title: "Login required",
+        description: "Please login to apply for this job.",
+      });
+      return;
+    }
+    if (!id) return;
+    try {
+      setApplying(true);
+      await applyMutation.mutateAsync({ coverLetter: coverLetter.trim() || undefined });
+      setApplyModalOpen(false);
+      setCoverLetter("");
+      toast({
+        title: "Application Submitted!",
+        description: "Your application has been sent successfully.",
+      });
+    } catch (e) {
+      toast({
+        title: "Apply failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setApplying(false);
+    }
   };
 
   // Calculate match details
-  const skillMatch = Math.round(
-    (job.skills.filter((s) => currentUser.skills?.some((us) => us.name === s)).length / job.skills.length) * 100
-  );
-  const certMatch = job.requiredCertificates.length === 0 || 
-    job.requiredCertificates.every((c) => currentUser.certificates?.some((uc) => uc.name === c));
-  const scoreMatch = (currentUser.aiScore || 0) >= job.minAiScore;
+  const match = useMemo(() => {
+    if (!job || !isAuthenticated || !user) {
+      return { skillMatch: 0, certMatch: false, scoreMatch: false, matchScore: 0 };
+    }
+    const skillCount = job.skills?.length || 0;
+    const overlap = skillCount
+      ? job.skills.filter((s) => user.skills?.some((us) => us.name === s)).length
+      : 0;
+    const skillMatch = skillCount ? Math.round((overlap / skillCount) * 100) : 0;
+    const certMatch =
+      (job.requiredCertificates?.length || 0) === 0 ||
+      job.requiredCertificates.every((c) => user.certificates?.some((uc) => uc.name === c));
+    const scoreMatch = (user.aiScore || 0) >= (job.minAiScore || 0);
+    const matchScore = typeof job.matchScore === "number" ? job.matchScore : skillMatch;
+    return { skillMatch, certMatch, scoreMatch, matchScore };
+  }, [isAuthenticated, job, user]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-16">
+          <div className="container mx-auto px-4">
+            <GlassCard className="p-6">Loading job…</GlassCard>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isError || !job) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-16">
+          <div className="container mx-auto px-4">
+            <GlassCard className="p-6">
+              <p className="text-sm text-muted-foreground">
+                Failed to load job{error instanceof Error ? `: ${error.message}` : "."}
+              </p>
+              <div className="mt-4">
+                <Link to="/jobs" className="text-primary hover:underline">
+                  Back to Jobs
+                </Link>
+              </div>
+            </GlassCard>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,7 +170,7 @@ export default function JobDetail() {
                 <GlassCard className="p-6 md:p-8">
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="h-20 w-20 rounded-2xl bg-muted flex items-center justify-center text-4xl shrink-0">
-                      {job.logo}
+                      {renderLogo(job.logo)}
                     </div>
                     <div className="flex-1">
                       <div className="flex flex-wrap items-start gap-3 mb-2">
@@ -119,7 +199,7 @@ export default function JobDetail() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          Posted {job.posted}
+                          Posted {formatPosted(job.posted)}
                         </span>
                       </div>
 
@@ -137,7 +217,19 @@ export default function JobDetail() {
                   </div>
 
                   <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border">
-                    <GradientButton onClick={() => setApplyModalOpen(true)} size="lg">
+                    <GradientButton
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast({
+                            title: "Login required",
+                            description: "Please login to apply.",
+                          });
+                          return;
+                        }
+                        setApplyModalOpen(true);
+                      }}
+                      size="lg"
+                    >
                       Apply Now
                     </GradientButton>
                     <Button
@@ -185,7 +277,7 @@ export default function JobDetail() {
                   <h3 className="font-display text-lg font-semibold mt-6 mb-3">Required Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {job.skills.map((skill) => {
-                      const hasSkill = currentUser.skills?.some((s) => s.name === skill);
+                      const hasSkill = user?.skills?.some((s) => s.name === skill);
                       return (
                         <Badge
                           key={skill}
@@ -204,7 +296,7 @@ export default function JobDetail() {
                       <h3 className="font-display text-lg font-semibold mt-6 mb-3">Required Certificates</h3>
                       <div className="flex flex-wrap gap-2">
                         {job.requiredCertificates.map((cert) => {
-                          const hasCert = currentUser.certificates?.some((c) => c.name === cert);
+                          const hasCert = user?.certificates?.some((c) => c.name === cert);
                           return (
                             <Badge
                               key={cert}
@@ -252,7 +344,7 @@ export default function JobDetail() {
                         strokeWidth="8"
                         fill="none"
                         strokeLinecap="round"
-                        strokeDasharray={`${(job.matchScore || 0) * 3.52} 352`}
+                        strokeDasharray={`${(match.matchScore || 0) * 3.52} 352`}
                       />
                       <defs>
                         <linearGradient id="matchGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -262,7 +354,7 @@ export default function JobDetail() {
                       </defs>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="font-display text-3xl font-bold">{job.matchScore}%</span>
+                      <span className="font-display text-3xl font-bold">{match.matchScore}%</span>
                     </div>
                   </div>
 
@@ -270,22 +362,28 @@ export default function JobDetail() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Skill Match</span>
                       <div className="flex items-center gap-2">
-                        <Progress value={skillMatch} className="w-20 h-2" />
-                        <span className="text-sm font-medium">{skillMatch}%</span>
+                        <Progress value={match.skillMatch} className="w-20 h-2" />
+                        <span className="text-sm font-medium">{match.skillMatch}%</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">AI Score ({job.minAiScore}+ required)</span>
-                      <Badge variant={scoreMatch ? "default" : "destructive"} className={scoreMatch ? "bg-success/10 text-success border-success/20" : ""}>
-                        {scoreMatch ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                        {currentUser.aiScore}
+                      <Badge
+                        variant={match.scoreMatch ? "default" : "destructive"}
+                        className={match.scoreMatch ? "bg-success/10 text-success border-success/20" : ""}
+                      >
+                        {match.scoreMatch ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                        {user?.aiScore ?? "—"}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Certificate Match</span>
-                      <Badge variant={certMatch ? "default" : "secondary"} className={certMatch ? "bg-success/10 text-success border-success/20" : ""}>
-                        {certMatch ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                        {certMatch ? "Met" : "Missing"}
+                      <Badge
+                        variant={match.certMatch ? "default" : "secondary"}
+                        className={match.certMatch ? "bg-success/10 text-success border-success/20" : ""}
+                      >
+                        {match.certMatch ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                        {!isAuthenticated ? "Login" : match.certMatch ? "Met" : "Missing"}
                       </Badge>
                     </div>
                   </div>
@@ -302,40 +400,40 @@ export default function JobDetail() {
                   <h3 className="font-display text-lg font-semibold mb-4">About the Company</h3>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
-                      {company.logo}
+                      {renderLogo(job.logo)}
                     </div>
                     <div>
-                      <h4 className="font-semibold">{company.name}</h4>
-                      <p className="text-sm text-muted-foreground">{company.industry}</p>
+                      <h4 className="font-semibold">{job.company || "Company"}</h4>
+                      <p className="text-sm text-muted-foreground">{"Technology"}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Building className="h-4 w-4" />
-                      {company.size}
+                      {"N/A"}
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      {company.location}
+                      {job.location}
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Globe className="h-4 w-4" />
-                      <a href={company.website} className="text-primary hover:underline">
-                        {company.website}
-                      </a>
+                      <span className="text-muted-foreground">{job.company ? "Website not provided" : "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Shield className="h-4 w-4" />
-                      Trust Score: <span className="text-success font-medium">{company.trustScore}%</span>
+                      Trust Score: <span className="text-success font-medium">{"—"}</span>
                     </div>
                   </div>
 
-                  <p className="text-muted-foreground text-sm mt-4">{company.description}</p>
+                  <p className="text-muted-foreground text-sm mt-4">
+                    Company details will appear here when provided by recruiters.
+                  </p>
 
                   <div className="mt-4 pt-4 border-t border-border">
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{company.openJobs}</span> open positions
+                      <span className="font-medium text-foreground">{"—"}</span> open positions
                     </p>
                   </div>
                 </GlassCard>
@@ -380,7 +478,7 @@ export default function JobDetail() {
                   <div className="p-4 rounded-xl bg-muted">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 rounded-lg bg-background flex items-center justify-center text-xl">
-                        {job.logo}
+                        {renderLogo(job.logo)}
                       </div>
                       <div>
                         <p className="font-medium">{job.title}</p>
@@ -390,7 +488,7 @@ export default function JobDetail() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Your Match Score</span>
                       <Badge className="gradient-primary text-primary-foreground">
-                        {job.matchScore}%
+                        {match.matchScore}%
                       </Badge>
                     </div>
                   </div>
@@ -400,14 +498,14 @@ export default function JobDetail() {
                     <p className="text-sm font-medium">Verification Status</p>
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span className="text-sm">AI Score: {currentUser.aiScore}/100</span>
+                      <span className="text-sm">AI Score: {user?.aiScore ?? "—"}/100</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-success" />
                       <span className="text-sm">Skills Verified on Blockchain</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {certMatch ? (
+                      {match.certMatch ? (
                         <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
                         <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
@@ -421,6 +519,8 @@ export default function JobDetail() {
                     <Textarea
                       placeholder="Tell the recruiter why you're a great fit for this role..."
                       className="mt-2 min-h-[120px]"
+                      value={coverLetter}
+                      onChange={(e) => setCoverLetter(e.target.value)}
                     />
                   </div>
 

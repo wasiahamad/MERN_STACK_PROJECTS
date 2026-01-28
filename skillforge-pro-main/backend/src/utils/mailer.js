@@ -8,7 +8,14 @@ function getTransporter() {
   if (transporter) return transporter;
 
   const hasSmtp = env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS;
+  const looksLikePlaceholder =
+    String(env.SMTP_USER || "").includes("your_email") || String(env.SMTP_PASS || "").includes("your_app_password");
   if (!hasSmtp) {
+    transporter = null;
+    return transporter;
+  }
+
+  if (looksLikePlaceholder) {
     transporter = null;
     return transporter;
   }
@@ -40,12 +47,25 @@ export async function sendEmail({ to, subject, text }) {
     return;
   }
 
-  await tx.sendMail({
-    from: env.EMAIL_FROM,
-    to,
-    subject,
-    text,
-  });
+  try {
+    await tx.sendMail({
+      from: env.EMAIL_FROM,
+      to,
+      subject,
+      text,
+    });
+  } catch (err) {
+    if (env.NODE_ENV === "production") {
+      throw new ApiError(502, "EMAIL_SEND_FAILED", "Failed to send email");
+    }
+
+    // Dev fallback: SMTP exists but is misconfigured (common locally)
+    // eslint-disable-next-line no-console
+    console.log("[DEV EMAIL SEND FAILED]", err?.message || err);
+    // eslint-disable-next-line no-console
+    console.log("[DEV EMAIL]", { to, subject, text });
+    return;
+  }
 }
 
 export async function sendOtpEmail({ to, otp, purpose }) {

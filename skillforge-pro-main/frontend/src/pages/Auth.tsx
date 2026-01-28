@@ -9,14 +9,16 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { ApiClientError } from "@/lib/apiClient";
 
-type AuthMode = "login" | "signup" | "forgot-password" | "reset-sent";
+type AuthMode = "login" | "signup" | "verify-email-otp" | "forgot-password" | "reset-password";
 type UserRole = "candidate" | "recruiter";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, isAuthenticated, isRecruiter } = useAuth();
+  const { loginWithPassword, signup, verifyEmailOtp, resendEmailOtp, forgotPassword, resetPassword, isAuthenticated, isRecruiter } =
+    useAuth();
   const initialRole = (searchParams.get("role") as UserRole) || "candidate";
   
   const [mode, setMode] = useState<AuthMode>("signup");
@@ -24,6 +26,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [walletConnecting, setWalletConnecting] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -44,67 +48,103 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Demo login
-    login(role);
-    
-    toast.success(
-      mode === "login" ? "Welcome back!" : "Account created successfully!",
-      {
-        description: `Logged in as ${role === "candidate" ? "Candidate" : "Recruiter"}`,
+
+    try {
+      if (mode === "login") {
+        await loginWithPassword({ email: formData.email, password: formData.password });
+        toast.success("Welcome back!", { description: "Logged in successfully" });
+        return;
       }
-    );
-    
-    setLoading(false);
-    
-    // Redirect based on role
-    if (role === "candidate") {
-      navigate("/dashboard");
-    } else {
-      navigate("/recruiter/dashboard");
+
+      if (mode === "signup") {
+        await signup({ email: formData.email, password: formData.password, role });
+        toast.success("OTP sent", { description: `Check your inbox at ${formData.email}` });
+        setMode("verify-email-otp");
+        return;
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Something went wrong");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate sending reset email
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success("Reset link sent!", {
-      description: `Check your inbox at ${formData.email}`,
-    });
-    
-    setLoading(false);
-    setMode("reset-sent");
+
+    try {
+      await forgotPassword({ email: formData.email });
+      toast.success("Reset OTP sent", { description: `Check your inbox at ${formData.email}` });
+      setMode("reset-password");
+    } catch (err) {
+      if (err instanceof ApiClientError) toast.error(err.message);
+      else toast.error("Unable to send reset OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await verifyEmailOtp({ email: formData.email, otp, name: formData.name || undefined });
+      toast.success("Email verified", { description: "Your account is now active" });
+    } catch (err) {
+      if (err instanceof ApiClientError) toast.error(err.message);
+      else toast.error("Unable to verify OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!formData.email) return;
+    try {
+      await resendEmailOtp({ email: formData.email });
+      toast.success("OTP resent", { description: `Sent again to ${formData.email}` });
+    } catch (err) {
+      if (err instanceof ApiClientError) toast.error(err.message);
+      else toast.error("Unable to resend OTP");
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword({ email: formData.email, otp, newPassword });
+      toast.success("Password updated", { description: "You can now login" });
+      setMode("login");
+      setOtp("");
+      setNewPassword("");
+      setFormData((p) => ({ ...p, password: "" }));
+    } catch (err) {
+      if (err instanceof ApiClientError) toast.error(err.message);
+      else toast.error("Unable to reset password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleWalletConnect = async () => {
     setWalletConnecting(true);
-    
-    // Simulate wallet connection
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Demo wallet login
-    login(role);
-    
-    toast.success("Wallet Connected!", {
-      description: "0x1234...5678 connected successfully",
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    toast.info("Wallet login not wired yet", {
+      description: "Use email + OTP signup/login for now.",
       icon: <CheckCircle className="h-4 w-4 text-primary" />,
     });
-    
     setWalletConnecting(false);
-    
-    // Redirect based on role
-    if (role === "candidate") {
-      navigate("/dashboard");
-    } else {
-      navigate("/recruiter/dashboard");
-    }
   };
 
   // Don't render if redirecting
@@ -157,12 +197,12 @@ const Auth = () => {
                   Forgot Password?
                 </h1>
                 <p className="text-muted-foreground text-sm mb-6">
-                  No worries! Enter your email and we'll send you a reset link.
+                  No worries! Enter your email and we'll send you a reset code (OTP).
                 </p>
 
                 <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
                   <p className="text-xs text-primary font-medium">
-                    🎮 Demo Mode: Enter any email to simulate reset
+                    In development, the OTP may be logged in the backend console if email isn’t configured.
                   </p>
                 </div>
 
@@ -184,60 +224,118 @@ const Auth = () => {
                   </div>
 
                   <GradientButton type="submit" className="w-full" loading={loading}>
-                    Send Reset Link
+                    Send Reset Code
                     <ArrowRight className="h-4 w-4" />
                   </GradientButton>
                 </form>
               </motion.div>
             )}
 
-            {/* Reset Sent Confirmation View */}
-            {mode === "reset-sent" && (
-              <motion.div
-                key="sent"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
-                className="text-center"
-              >
-                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle className="h-8 w-8 text-primary" />
-                </div>
 
-                <h1 className="font-display text-2xl font-bold mb-2">
-                  Check Your Email
-                </h1>
+            {/* Verify Email OTP View */}
+            {mode === "verify-email-otp" && (
+              <motion.div
+                key="verify"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <button
+                  onClick={() => setMode("signup")}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to signup
+                </button>
+
+                <h1 className="font-display text-2xl font-bold mb-2">Verify your email</h1>
                 <p className="text-muted-foreground text-sm mb-6">
-                  We've sent a password reset link to <br />
-                  <span className="font-medium text-foreground">{formData.email}</span>
+                  Enter the 6-digit OTP sent to <span className="font-medium text-foreground">{formData.email}</span>
                 </p>
 
-                <div className="mb-6 p-3 rounded-lg bg-primary/10 border border-primary/20">
-                  <p className="text-xs text-primary font-medium">
-                    🎮 Demo Mode: No actual email sent. Click below to continue.
-                  </p>
-                </div>
+                <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp">OTP</Label>
+                    <Input
+                      id="otp"
+                      inputMode="numeric"
+                      placeholder="6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      required
+                    />
+                  </div>
 
-                <GradientButton
-                  onClick={() => {
-                    toast.success("Password reset successful!", {
-                      description: "You can now login with your new password",
-                    });
-                    setMode("login");
-                  }}
-                  className="w-full mb-4"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Simulate Password Reset
-                </GradientButton>
+                  <GradientButton type="submit" className="w-full" loading={loading}>
+                    Verify & Continue
+                    <ArrowRight className="h-4 w-4" />
+                  </GradientButton>
 
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground"
+                    disabled={loading}
+                  >
+                    Resend OTP
+                  </button>
+                </form>
+              </motion.div>
+            )}
+
+            {/* Reset Password (OTP) View */}
+            {mode === "reset-password" && (
+              <motion.div
+                key="reset"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
                 <button
                   onClick={() => setMode("login")}
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
                 >
+                  <ArrowLeft className="h-4 w-4" />
                   Back to login
                 </button>
+
+                <h1 className="font-display text-2xl font-bold mb-2">Reset password</h1>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Enter the OTP sent to <span className="font-medium text-foreground">{formData.email}</span>
+                </p>
+
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="resetOtp">OTP</Label>
+                    <Input
+                      id="resetOtp"
+                      inputMode="numeric"
+                      placeholder="6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New password</Label>
+                    <Input
+                      id="newPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 8 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <GradientButton type="submit" className="w-full" loading={loading}>
+                    Update Password
+                    <ArrowRight className="h-4 w-4" />
+                  </GradientButton>
+                </form>
               </motion.div>
             )}
 
@@ -303,10 +401,12 @@ const Auth = () => {
                     : `Sign up as a ${role} to get started`}
                 </p>
 
-                {/* Demo Credentials Hint */}
+                {/* Auth Hint */}
                 <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
                   <p className="text-xs text-primary font-medium">
-                    🎮 Demo Mode: Enter any email/password to login
+                    {mode === "login"
+                      ? "Use your registered email/password. If you just signed up, verify the OTP first."
+                      : "After signing up, you’ll receive an OTP to verify your email."}
                   </p>
                 </div>
 

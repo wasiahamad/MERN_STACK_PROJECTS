@@ -55,7 +55,16 @@ export const signup = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  await sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" });
+  if (env.NODE_ENV !== "production") {
+    void sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.log("[DEV OTP FALLBACK] Signup OTP for", normalizedEmail, otp);
+      // eslint-disable-next-line no-console
+      console.log("[DEV EMAIL ERROR]", err?.message || err);
+    });
+  } else {
+    await sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" });
+  }
 
   return created(
     res,
@@ -91,7 +100,16 @@ export const resendEmailOtp = asyncHandler(async (req, res) => {
   user.otpResendCount += 1;
   await user.save();
 
-  await sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" });
+  if (env.NODE_ENV !== "production") {
+    void sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.log("[DEV OTP FALLBACK] Resend signup OTP for", normalizedEmail, otp);
+      // eslint-disable-next-line no-console
+      console.log("[DEV EMAIL ERROR]", err?.message || err);
+    });
+  } else {
+    await sendOtpEmail({ to: normalizedEmail, otp, purpose: "signup" });
+  }
 
   return ok(
     res,
@@ -213,7 +231,16 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   user.resetOtpAttempts = 0;
   await user.save();
 
-  await sendOtpEmail({ to: normalizedEmail, otp, purpose: "reset" });
+  if (env.NODE_ENV !== "production") {
+    void sendOtpEmail({ to: normalizedEmail, otp, purpose: "reset" }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.log("[DEV OTP FALLBACK] Reset OTP for", normalizedEmail, otp);
+      // eslint-disable-next-line no-console
+      console.log("[DEV EMAIL ERROR]", err?.message || err);
+    });
+  } else {
+    await sendOtpEmail({ to: normalizedEmail, otp, purpose: "reset" });
+  }
 
   return ok(res, { email: normalizedEmail, otpExpiresInMinutes: env.OTP_TTL_MINUTES }, "Reset OTP sent");
 });

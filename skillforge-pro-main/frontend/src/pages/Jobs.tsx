@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Search, MapPin, Briefcase, Clock, DollarSign, Filter, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -9,79 +9,49 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { JobCardSkeleton } from "@/components/ui/skeleton-loader";
 import { HoverCard, StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
-
-// Mock data
-const mockJobs = [
-  {
-    id: 1,
-    title: "Senior Blockchain Developer",
-    company: "ChainTech Labs",
-    logo: "🔗",
-    location: "Remote",
-    type: "Full-time",
-    salary: "$120k - $180k",
-    posted: "2 days ago",
-    skills: ["Solidity", "Web3.js", "React", "Node.js"],
-    matchScore: 95,
-    verified: true,
-  },
-  {
-    id: 2,
-    title: "AI/ML Engineer",
-    company: "Neural Networks Inc",
-    logo: "🧠",
-    location: "San Francisco, CA",
-    type: "Full-time",
-    salary: "$150k - $200k",
-    posted: "1 day ago",
-    skills: ["Python", "TensorFlow", "PyTorch", "MLOps"],
-    matchScore: 88,
-    verified: true,
-  },
-  {
-    id: 3,
-    title: "Full Stack Developer",
-    company: "Web3 Ventures",
-    logo: "🚀",
-    location: "New York, NY",
-    type: "Full-time",
-    salary: "$100k - $140k",
-    posted: "3 days ago",
-    skills: ["React", "Node.js", "TypeScript", "PostgreSQL"],
-    matchScore: 82,
-    verified: false,
-  },
-  {
-    id: 4,
-    title: "Smart Contract Auditor",
-    company: "SecureChain",
-    logo: "🔒",
-    location: "Remote",
-    type: "Contract",
-    salary: "$150k - $200k",
-    posted: "5 hours ago",
-    skills: ["Solidity", "Vyper", "Security", "Audit"],
-    matchScore: 78,
-    verified: true,
-  },
-  {
-    id: 5,
-    title: "DevOps Engineer",
-    company: "CloudScale",
-    logo: "☁️",
-    location: "Austin, TX",
-    type: "Full-time",
-    salary: "$110k - $150k",
-    posted: "1 week ago",
-    skills: ["AWS", "Kubernetes", "Docker", "Terraform"],
-    matchScore: 75,
-    verified: true,
-  },
-];
+import { usePublicJobs } from "@/lib/apiHooks";
+import type { Job } from "@/data/mockData";
+import { useNavigate } from "react-router-dom";
 
 const Jobs = () => {
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedLocation, setAppliedLocation] = useState("");
+  const [page, setPage] = useState(1);
+  const [jobs, setJobs] = useState<Job[]>([]);
+
+  const queryParams = useMemo(
+    () => ({ search: appliedSearch || undefined, location: appliedLocation || undefined, page, pageSize: 10 }),
+    [appliedSearch, appliedLocation, page]
+  );
+
+  const { data, isLoading, isFetching, isError, error } = usePublicJobs(queryParams);
+
+  useEffect(() => {
+    setPage(1);
+    setJobs([]);
+  }, [appliedSearch, appliedLocation]);
+
+  useEffect(() => {
+    if (!data?.items) return;
+    setJobs((prev) => {
+      if (page <= 1) return data.items;
+      const seen = new Set(prev.map((j) => j.id));
+      const next = data.items.filter((j) => !seen.has(j.id));
+      return [...prev, ...next];
+    });
+  }, [data?.items, page]);
+
+  const total = data?.total ?? jobs.length;
+  const canLoadMore = jobs.length < total;
+
+  const formatPosted = (posted: string) => {
+    const d = new Date(posted);
+    if (Number.isNaN(d.getTime())) return posted;
+    return d.toLocaleDateString();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -124,9 +94,21 @@ const Jobs = () => {
                 </div>
                 <div className="flex-1 relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input placeholder="Location or Remote" className="pl-10 h-12" />
+                  <Input
+                    placeholder="Location or Remote"
+                    className="pl-10 h-12"
+                    value={locationQuery}
+                    onChange={(e) => setLocationQuery(e.target.value)}
+                  />
                 </div>
-                <GradientButton size="lg" className="h-12 px-8">
+                <GradientButton
+                  size="lg"
+                  className="h-12 px-8"
+                  onClick={() => {
+                    setAppliedSearch(searchQuery.trim());
+                    setAppliedLocation(locationQuery.trim());
+                  }}
+                >
                   <Search className="h-5 w-5" />
                   Search
                 </GradientButton>
@@ -164,7 +146,7 @@ const Jobs = () => {
             className="flex items-center justify-between mb-6"
           >
             <p className="text-muted-foreground">
-              Showing <span className="font-semibold text-foreground">{mockJobs.length}</span> jobs
+              Showing <span className="font-semibold text-foreground">{jobs.length}</span> jobs
             </p>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Sort by:</span>
@@ -176,7 +158,7 @@ const Jobs = () => {
           </motion.div>
 
           {/* Job Listings */}
-          {loading ? (
+          {isLoading ? (
             <div className="grid gap-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <JobCardSkeleton key={i} />
@@ -184,14 +166,24 @@ const Jobs = () => {
             </div>
           ) : (
             <StaggerContainer className="grid gap-4">
-              {mockJobs.map((job) => (
+              {isError ? (
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <p className="text-sm text-muted-foreground">
+                    Failed to load jobs{error instanceof Error ? `: ${error.message}` : "."}
+                  </p>
+                </div>
+              ) : null}
+              {jobs.map((job) => (
                 <StaggerItem key={job.id}>
                   <HoverCard>
-                    <div className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer">
+                    <div
+                      className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
                       <div className="flex flex-col md:flex-row md:items-start gap-4">
                         {/* Logo */}
                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-2xl shrink-0">
-                          {job.logo}
+                          {job.logo || "🏢"}
                         </div>
 
                         {/* Content */}
@@ -209,9 +201,9 @@ const Jobs = () => {
                                   Verified
                                 </Badge>
                               )}
-                              <Badge className="gradient-primary text-primary-foreground">
-                                {job.matchScore}% Match
-                              </Badge>
+                              {typeof job.matchScore === "number" ? (
+                                <Badge className="gradient-primary text-primary-foreground">{job.matchScore}% Match</Badge>
+                              ) : null}
                             </div>
                           </div>
 
@@ -230,7 +222,7 @@ const Jobs = () => {
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {job.posted}
+                              {formatPosted(job.posted)}
                             </span>
                           </div>
 
@@ -245,7 +237,13 @@ const Jobs = () => {
 
                         {/* Apply Button */}
                         <div className="shrink-0">
-                          <GradientButton size="sm">
+                          <GradientButton
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/jobs/${job.id}`);
+                            }}
+                          >
                             Apply Now
                           </GradientButton>
                         </div>
@@ -264,7 +262,12 @@ const Jobs = () => {
             transition={{ duration: 0.5, delay: 0.5 }}
             className="text-center mt-8"
           >
-            <GradientButton variant="outline" size="lg">
+            <GradientButton
+              variant="outline"
+              size="lg"
+              disabled={!canLoadMore || isFetching}
+              onClick={() => setPage((p) => p + 1)}
+            >
               Load More Jobs
             </GradientButton>
           </motion.div>

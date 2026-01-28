@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -12,7 +12,6 @@ import {
   DollarSign,
   Calendar,
   ArrowRight,
-  Filter,
   Search,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -20,7 +19,8 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
-import { mockApplications, Application } from "@/data/mockData";
+import type { Application } from "@/data/mockData";
+import { useMyApplications } from "@/lib/apiHooks";
 
 const statusConfig = {
   pending: { icon: Clock, color: "text-muted-foreground", bg: "bg-muted", label: "Pending Review" },
@@ -44,13 +44,34 @@ export default function Applications() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredApplications = mockApplications.filter((app) => {
-    const matchesFilter = activeFilter === "all" || app.status === activeFilter;
-    const matchesSearch =
-      app.job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.job.company.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+  const queryStatus = activeFilter === "all" ? undefined : activeFilter;
+  const { data, isLoading, isError, error } = useMyApplications({
+    status: queryStatus,
+    search: searchQuery.trim() || undefined,
+    page: 1,
+    pageSize: 50,
   });
+
+  const applications = useMemo(() => {
+    const items = data?.items ?? [];
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((app) => {
+      const title = app.job?.title?.toLowerCase() || "";
+      const company = app.job?.company?.toLowerCase() || "";
+      return title.includes(q) || company.includes(q);
+    });
+  }, [data?.items, searchQuery]);
+
+  const stats = useMemo(() => {
+    const all = data?.items ?? [];
+    return {
+      total: all.length,
+      reviewing: all.filter((a) => a.status === "reviewing").length,
+      interview: all.filter((a) => a.status === "interview").length,
+      offered: all.filter((a) => a.status === "offered").length,
+    };
+  }, [data?.items]);
 
   return (
     <DashboardLayout>
@@ -76,24 +97,24 @@ export default function Applications() {
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           <GlassCard hover={false} className="p-4 text-center">
-            <p className="text-2xl font-bold">{mockApplications.length}</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
             <p className="text-sm text-muted-foreground">Total Applied</p>
           </GlassCard>
           <GlassCard hover={false} className="p-4 text-center">
             <p className="text-2xl font-bold text-warning">
-              {mockApplications.filter((a) => a.status === "reviewing").length}
+              {stats.reviewing}
             </p>
             <p className="text-sm text-muted-foreground">In Review</p>
           </GlassCard>
           <GlassCard hover={false} className="p-4 text-center">
             <p className="text-2xl font-bold text-accent">
-              {mockApplications.filter((a) => a.status === "interview").length}
+              {stats.interview}
             </p>
             <p className="text-sm text-muted-foreground">Interviews</p>
           </GlassCard>
           <GlassCard hover={false} className="p-4 text-center">
             <p className="text-2xl font-bold text-success">
-              {mockApplications.filter((a) => a.status === "offered").length}
+              {stats.offered}
             </p>
             <p className="text-sm text-muted-foreground">Offers</p>
           </GlassCard>
@@ -137,10 +158,21 @@ export default function Applications() {
 
         {/* Applications List */}
         <StaggerContainer className="space-y-4">
-          {filteredApplications.map((app) => (
+          {isLoading ? (
+            <GlassCard className="p-6">Loading applications…</GlassCard>
+          ) : null}
+          {isError ? (
+            <GlassCard className="p-6">
+              <p className="text-sm text-muted-foreground">
+                Failed to load applications{error instanceof Error ? `: ${error.message}` : "."}
+              </p>
+            </GlassCard>
+          ) : null}
+
+          {applications.map((app) => (
             <ApplicationCard key={app.id} application={app} />
           ))}
-          {filteredApplications.length === 0 && (
+          {!isLoading && applications.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -157,6 +189,13 @@ export default function Applications() {
 
 function ApplicationCard({ application }: { application: Application }) {
   const status = statusConfig[application.status];
+  const job = application.job;
+
+  const formatApplied = (applied: string) => {
+    const d = new Date(applied);
+    if (Number.isNaN(d.getTime())) return applied;
+    return d.toLocaleDateString();
+  };
 
   return (
     <StaggerItem>
@@ -166,31 +205,31 @@ function ApplicationCard({ application }: { application: Application }) {
             {/* Job Info */}
             <div className="flex items-start gap-4 flex-1">
               <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
-                {application.job.logo}
+                {job?.logo || "🏢"}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-display font-semibold text-lg">{application.job.title}</h3>
-                    <p className="text-muted-foreground">{application.job.company}</p>
+                    <h3 className="font-display font-semibold text-lg">{job?.title || "Job"}</h3>
+                    <p className="text-muted-foreground">{job?.company || ""}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    {application.job.location}
+                    {job?.location || ""}
                   </span>
                   <span className="flex items-center gap-1">
                     <Briefcase className="h-4 w-4" />
-                    {application.job.type}
+                    {job?.type || ""}
                   </span>
                   <span className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4" />
-                    {application.job.salary}
+                    {job?.salary || ""}
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    Applied {application.appliedDate}
+                    Applied {formatApplied(application.appliedDate)}
                   </span>
                 </div>
               </div>

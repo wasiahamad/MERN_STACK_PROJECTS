@@ -7,8 +7,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, isCandidate, isRecruiter } = useAuth();
+  const { isAuthenticated, isCandidate, isRecruiter, authInitializing } = useAuth();
   const location = useLocation();
+
+  if (authInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     // Redirect to auth with the intended destination
