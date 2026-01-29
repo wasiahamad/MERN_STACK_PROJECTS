@@ -221,6 +221,20 @@ export function useUpdateMe() {
   });
 }
 
+export function useUploadAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("avatar", file);
+      return apiFetch<{ avatar: string; user?: User }>("/api/me/avatar", { method: "POST", body: form });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+}
+
 // Candidate profile CRUD (skills/experience/education)
 export function useAddSkill() {
   return useMutation({

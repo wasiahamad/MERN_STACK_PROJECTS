@@ -20,8 +20,12 @@ import {
 const router = express.Router();
 
 const upload = multer({
-  dest: "uploads",
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /^image\/(jpeg|jpg|png|webp|gif)$/.test(file.mimetype || "");
+    cb(ok ? null : new Error("Only image files are allowed"), ok);
+  },
 });
 
 router.get("/", requireAuth, requireVerifiedEmail, getMe);

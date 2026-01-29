@@ -41,4 +41,9 @@ export const env = {
   SMTP_PORT: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASS: process.env.SMTP_PASS,
+
+  // Cloudinary (support legacy CLOUDNARY_* env names)
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_NAME || process.env.CLOUDNARY_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || process.env.CLOUDNARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDNARY_API_SECRET,
 };

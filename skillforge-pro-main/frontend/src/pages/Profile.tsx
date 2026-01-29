@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -31,6 +31,7 @@ import { useAuth } from "@/context/AuthContext";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import {
   useUpdateMe,
+  useUploadAvatar,
   useAddSkill,
   useDeleteSkill,
   useAddExperience,
@@ -46,6 +47,7 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
 
   const updateMeMutation = useUpdateMe();
+  const uploadAvatarMutation = useUploadAvatar();
   const addSkillMutation = useAddSkill();
   const deleteSkillMutation = useDeleteSkill();
   const addExperienceMutation = useAddExperience();
@@ -96,8 +98,12 @@ export default function Profile() {
   });
   const [newEdu, setNewEdu] = useState({ degree: "", institution: "", year: "", gpa: "" });
 
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+
   const busy =
     updateMeMutation.isPending ||
+    uploadAvatarMutation.isPending ||
     addSkillMutation.isPending ||
     deleteSkillMutation.isPending ||
     addExperienceMutation.isPending ||
@@ -139,6 +145,64 @@ export default function Profile() {
   const safeWallet = useMemo(() => user?.walletAddress || "", [user?.walletAddress]);
   const safeAbout = useMemo(() => user?.about || "", [user?.about]);
 
+  const avatarSrc = useMemo(() => {
+    if (avatarPreviewUrl) return avatarPreviewUrl;
+    const a = (user?.avatar || "").trim();
+    if (!a) return "";
+    if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return a;
+    return "";
+  }, [user?.avatar, avatarPreviewUrl]);
+
+  const avatarFallback = useMemo(() => {
+    const a = (user?.avatar || "").trim();
+    if (a && !a.startsWith("http") && !a.startsWith("/uploads")) return a; // emoji / initial
+    const name = (user?.name || "").trim();
+    return name ? name.slice(0, 1).toUpperCase() : "👤";
+  }, [user?.avatar, user?.name]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
+
+  const onPickAvatar = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const onAvatarSelected = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Too large", description: "Max avatar size is 5MB.", variant: "destructive" });
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setAvatarPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return preview;
+    });
+
+    try {
+      await uploadAvatarMutation.mutateAsync(file);
+      await refreshMe();
+      toast({ title: "Avatar updated" });
+      setAvatarPreviewUrl(null);
+    } catch (e: any) {
+      toast({
+        title: "Upload failed",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
   const socialLinks = useMemo(() => {
     const github = user?.socials?.github?.trim();
     const linkedin = user?.socials?.linkedin?.trim();
@@ -169,12 +233,65 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row gap-6">
               {/* Avatar */}
               <div className="relative">
-                <div className="h-24 w-24 md:h-32 md:w-32 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-5xl md:text-6xl">
-                  {user?.avatar}
-                </div>
-                <button className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                  <Edit2 className="h-4 w-4" />
+                <button
+                  type="button"
+                  onClick={editMode ? onPickAvatar : undefined}
+                  disabled={!editMode || busy}
+                  className={
+                    "group relative h-24 w-24 md:h-32 md:w-32 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center overflow-hidden disabled:opacity-60 " +
+                    (editMode ? "cursor-pointer" : "cursor-default")
+                  }
+                  aria-label={editMode ? "Upload avatar" : "Avatar"}
+                >
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-5xl md:text-6xl">{avatarFallback}</span>
+                  )}
+
+                  {editMode && (
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="flex items-center gap-2 text-white text-xs font-medium">
+                        <Edit2 className="h-4 w-4" />
+                        Upload
+                      </div>
+                    </div>
+                  )}
                 </button>
+
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onAvatarSelected(e.target.files?.[0])}
+                />
+
+                {editMode && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onPickAvatar}
+                      disabled={busy}
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform disabled:opacity-60"
+                      aria-label="Change avatar"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+
+                    <div className="mt-3 flex justify-center">
+                      <GradientButton
+                        variant="outline"
+                        size="sm"
+                        onClick={onPickAvatar}
+                        loading={uploadAvatarMutation.isPending}
+                        disabled={busy}
+                      >
+                        Upload Photo
+                      </GradientButton>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Info */}

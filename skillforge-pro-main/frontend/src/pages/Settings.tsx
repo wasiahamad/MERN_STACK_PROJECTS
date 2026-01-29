@@ -15,6 +15,7 @@ import {
   Trash2,
   Link as LinkIcon,
   CheckCircle,
+  LogOut,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/ui/glass-card";

@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { mockNotifications } from "@/data/mockData";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface DashboardHeaderProps {
   onMenuClick: () => void;
@@ -24,6 +25,20 @@ export function DashboardHeader({ onMenuClick, onLogout }: DashboardHeaderProps)
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const unreadCount = mockNotifications.filter((n) => !n.read).length;
+
+  const avatarSrc = (() => {
+    const a = (user?.avatar || "").trim();
+    if (!a) return "";
+    if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return a;
+    return "";
+  })();
+
+  const avatarFallback = (() => {
+    const a = (user?.avatar || "").trim();
+    if (a && !a.startsWith("http") && !a.startsWith("/uploads")) return a;
+    const name = (user?.name || "").trim();
+    return name ? name.slice(0, 1).toUpperCase() : "👤";
+  })();
 
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
@@ -119,9 +134,10 @@ export function DashboardHeader({ onMenuClick, onLogout }: DashboardHeaderProps)
               }}
               className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg hover:bg-muted"
             >
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-lg shrink-0">
-                {user?.avatar}
-              </div>
+              <Avatar className="h-8 w-8 shrink-0">
+                {avatarSrc ? <AvatarImage src={avatarSrc} alt="Avatar" /> : null}
+                <AvatarFallback className="text-lg">{avatarFallback}</AvatarFallback>
+              </Avatar>
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium truncate max-w-[120px]">{user?.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>

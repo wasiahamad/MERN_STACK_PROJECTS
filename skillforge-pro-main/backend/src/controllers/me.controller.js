@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { RecruiterProfile } from "../models/RecruiterProfile.js";
+import { uploadImageBuffer } from "../utils/cloudinary.js";
 
 function mapSkill(s) {
   return { name: s.name, level: s.level, verified: !!s.verified };
@@ -178,11 +179,22 @@ export const updateMe = asyncHandler(async (req, res) => {
 export const uploadAvatar = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, "VALIDATION", "avatar file is required");
 
-  const avatarUrl = path.posix.join("/uploads", req.file.filename);
-  req.user.avatar = avatarUrl;
+  // multer is configured with memoryStorage() for this route
+  const buffer = req.file.buffer;
+  if (!buffer) throw new ApiError(400, "VALIDATION", "avatar buffer is required");
+
+  const upload = await uploadImageBuffer(buffer, {
+    public_id: `user_${String(req.user._id)}`,
+    transformation: [{ width: 256, height: 256, crop: "fill", gravity: "face" }],
+  });
+
+  const avatarUrl = upload?.secure_url || upload?.url;
+  if (!avatarUrl) throw new ApiError(500, "AVATAR_UPLOAD_FAILED", "Unable to upload avatar");
+
+  req.user.avatar = String(avatarUrl);
   await req.user.save();
 
-  return ok(res, { avatar: avatarUrl }, "Avatar uploaded");
+  return ok(res, { avatar: avatarUrl, user: mapUser(req.user) }, "Avatar uploaded");
 });
 
 function requireCandidate(user) {

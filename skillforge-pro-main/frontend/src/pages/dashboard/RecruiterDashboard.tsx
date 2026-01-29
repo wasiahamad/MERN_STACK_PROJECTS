@@ -168,13 +168,33 @@ export default function RecruiterDashboard() {
                   .sort((a, b) => b.matchScore - a.matchScore)
                   .slice(0, 4)
                   .map((candidate, index) => (
+                    (() => {
+                      const avatarSrc = (() => {
+                        const a = (candidate.avatar || "").trim();
+                        if (!a) return "";
+                        if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return a;
+                        return "";
+                      })();
+
+                      const avatarFallback = (() => {
+                        const a = (candidate.avatar || "").trim();
+                        if (a && !a.startsWith("http") && !a.startsWith("/uploads")) return a;
+                        const name = (candidate.name || "").trim();
+                        return name ? name.slice(0, 1).toUpperCase() : "👤";
+                      })();
+
+                      return (
                     <div
                       key={candidate.id}
                       className="flex items-center gap-4 p-3 rounded-xl border border-border hover:border-primary/50 transition-colors"
                     >
                       <div className="relative">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-xl shrink-0">
-                          {candidate.avatar}
+                        <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center text-xl shrink-0">
+                          {avatarSrc ? (
+                            <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" />
+                          ) : (
+                            avatarFallback
+                          )}
                         </div>
                         {index < 3 && (
                           <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-warning flex items-center justify-center">
@@ -193,6 +213,8 @@ export default function RecruiterDashboard() {
                         <p className="text-xs text-muted-foreground mt-1">AI: {candidate.aiScore}</p>
                       </div>
                     </div>
+                      );
+                    })()
                   ))}
               </div>
             </GlassCard>

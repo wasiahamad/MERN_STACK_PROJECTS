@@ -177,6 +177,20 @@ function CandidateCard({
   const [statusOpen, setStatusOpen] = useState(false);
   const status = statusConfig[candidate.status];
 
+  const avatarSrc = (() => {
+    const a = (candidate.avatar || "").trim();
+    if (!a) return "";
+    if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return a;
+    return "";
+  })();
+
+  const avatarFallback = (() => {
+    const a = (candidate.avatar || "").trim();
+    if (a && !a.startsWith("http") && !a.startsWith("/uploads")) return a;
+    const name = (candidate.name || "").trim();
+    return name ? name.slice(0, 1).toUpperCase() : "👤";
+  })();
+
   return (
     <StaggerItem>
       <GlassCard className="p-5">
@@ -184,8 +198,12 @@ function CandidateCard({
           {/* Avatar & Rank */}
           <div className="flex items-start gap-4">
             <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
-                {candidate.avatar}
+              <div className="h-14 w-14 rounded-xl bg-muted overflow-hidden flex items-center justify-center text-2xl">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  avatarFallback
+                )}
               </div>
               {rank <= 3 && (
                 <div className="absolute -top-2 -left-2 h-6 w-6 rounded-full bg-warning flex items-center justify-center">
