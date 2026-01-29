@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Job, Application, Notification, DAOProposal, Candidate, User } from "@/data/mockData";
+import type { Job, Application, Notification, DAOProposal, Candidate, User, Skill, Experience, Education } from "@/data/mockData";
 import { apiFetch, toQueryString } from "@/lib/apiClient";
 import type { RecruiterProfile } from "@/context/AuthContext";
 
@@ -205,5 +205,67 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (body: { currentPassword: string; newPassword: string }) =>
       apiFetch<{ ok: true }>("/api/settings/password", { method: "POST", body }),
+  });
+}
+
+// Candidate profile CRUD (skills/experience/education)
+export function useAddSkill() {
+  return useMutation({
+    mutationFn: (body: Pick<Skill, "name" | "level"> & { verified?: boolean }) =>
+      apiFetch<{ user: User }>("/api/me/skills", { method: "POST", body }),
+  });
+}
+
+export function useUpdateSkill() {
+  return useMutation({
+    mutationFn: (params: { name: string; level?: number; verified?: boolean; newName?: string }) =>
+      apiFetch<{ user: User }>(`/api/me/skills/${encodeURIComponent(params.name)}`, {
+        method: "PUT",
+        body: { level: params.level, verified: params.verified, newName: params.newName },
+      }),
+  });
+}
+
+export function useDeleteSkill() {
+  return useMutation({
+    mutationFn: (name: string) => apiFetch<{ user: User }>(`/api/me/skills/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  });
+}
+
+export function useAddExperience() {
+  return useMutation({
+    mutationFn: (body: Omit<Experience, "id">) => apiFetch<{ user: User }>("/api/me/experience", { method: "POST", body }),
+  });
+}
+
+export function useUpdateExperience() {
+  return useMutation({
+    mutationFn: (params: { id: string; patch: Partial<Omit<Experience, "id">> }) =>
+      apiFetch<{ user: User }>(`/api/me/experience/${params.id}`, { method: "PUT", body: params.patch }),
+  });
+}
+
+export function useDeleteExperience() {
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<{ user: User }>(`/api/me/experience/${id}`, { method: "DELETE" }),
+  });
+}
+
+export function useAddEducation() {
+  return useMutation({
+    mutationFn: (body: Omit<Education, "id">) => apiFetch<{ user: User }>("/api/me/education", { method: "POST", body }),
+  });
+}
+
+export function useUpdateEducation() {
+  return useMutation({
+    mutationFn: (params: { id: string; patch: Partial<Omit<Education, "id">> }) =>
+      apiFetch<{ user: User }>(`/api/me/education/${params.id}`, { method: "PUT", body: params.patch }),
+  });
+}
+
+export function useDeleteEducation() {
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<{ user: User }>(`/api/me/education/${id}`, { method: "DELETE" }),
   });
 }

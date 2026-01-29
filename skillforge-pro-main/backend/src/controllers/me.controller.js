@@ -165,3 +165,174 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
 
   return ok(res, { avatar: avatarUrl }, "Avatar uploaded");
 });
+
+function requireCandidate(user) {
+  if (user?.role !== "candidate") {
+    throw new ApiError(403, "FORBIDDEN", "Candidate only");
+  }
+}
+
+export const addSkill = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { name, level, verified } = req.body || {};
+  const normalizedName = String(name || "").trim();
+  if (!normalizedName) throw new ApiError(400, "VALIDATION", "name is required");
+
+  const nLevel = Number(level);
+  if (!Number.isFinite(nLevel) || nLevel < 0 || nLevel > 100) {
+    throw new ApiError(400, "VALIDATION", "level must be 0..100");
+  }
+
+  const idx = (req.user.skills || []).findIndex((s) => String(s.name).toLowerCase() === normalizedName.toLowerCase());
+  if (idx >= 0) {
+    req.user.skills[idx].name = normalizedName;
+    req.user.skills[idx].level = nLevel;
+    if (verified !== undefined) req.user.skills[idx].verified = !!verified;
+  } else {
+    req.user.skills.push({ name: normalizedName, level: nLevel, verified: !!verified });
+  }
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Skill saved");
+});
+
+export const updateSkill = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { name } = req.params;
+  const { level, verified, newName } = req.body || {};
+
+  const key = String(name || "").trim();
+  if (!key) throw new ApiError(400, "VALIDATION", "name is required");
+
+  const idx = (req.user.skills || []).findIndex((s) => String(s.name).toLowerCase() === key.toLowerCase());
+  if (idx < 0) throw new ApiError(404, "SKILL_NOT_FOUND", "Skill not found");
+
+  if (newName !== undefined) {
+    const nn = String(newName || "").trim();
+    if (!nn) throw new ApiError(400, "VALIDATION", "newName cannot be empty");
+    req.user.skills[idx].name = nn;
+  }
+
+  if (level !== undefined) {
+    const nLevel = Number(level);
+    if (!Number.isFinite(nLevel) || nLevel < 0 || nLevel > 100) {
+      throw new ApiError(400, "VALIDATION", "level must be 0..100");
+    }
+    req.user.skills[idx].level = nLevel;
+  }
+
+  if (verified !== undefined) req.user.skills[idx].verified = !!verified;
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Skill updated");
+});
+
+export const deleteSkill = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { name } = req.params;
+  const key = String(name || "").trim();
+  if (!key) throw new ApiError(400, "VALIDATION", "name is required");
+
+  const before = req.user.skills?.length || 0;
+  req.user.skills = (req.user.skills || []).filter((s) => String(s.name).toLowerCase() !== key.toLowerCase());
+  if ((req.user.skills?.length || 0) === before) {
+    throw new ApiError(404, "SKILL_NOT_FOUND", "Skill not found");
+  }
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Skill deleted");
+});
+
+export const addExperience = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { title, company, location, startDate, endDate, current, description } = req.body || {};
+  if (!title || !company || !location || !startDate) {
+    throw new ApiError(400, "VALIDATION", "title, company, location, startDate are required");
+  }
+
+  req.user.experience.push({
+    title: String(title),
+    company: String(company),
+    location: String(location),
+    startDate: String(startDate),
+    endDate: endDate ? String(endDate) : undefined,
+    current: !!current,
+    description: typeof description === "string" ? description : "",
+  });
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Experience added");
+});
+
+export const updateExperience = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { id } = req.params;
+  const exp = (req.user.experience || []).id(id);
+  if (!exp) throw new ApiError(404, "EXPERIENCE_NOT_FOUND", "Experience not found");
+
+  const { title, company, location, startDate, endDate, current, description } = req.body || {};
+  if (title !== undefined) exp.title = String(title);
+  if (company !== undefined) exp.company = String(company);
+  if (location !== undefined) exp.location = String(location);
+  if (startDate !== undefined) exp.startDate = String(startDate);
+  if (endDate !== undefined) exp.endDate = endDate ? String(endDate) : "";
+  if (current !== undefined) exp.current = !!current;
+  if (description !== undefined) exp.description = typeof description === "string" ? description : "";
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Experience updated");
+});
+
+export const deleteExperience = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { id } = req.params;
+  const exp = (req.user.experience || []).id(id);
+  if (!exp) throw new ApiError(404, "EXPERIENCE_NOT_FOUND", "Experience not found");
+  exp.deleteOne();
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Experience deleted");
+});
+
+export const addEducation = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { degree, institution, year, gpa } = req.body || {};
+  if (!degree || !institution || !year) {
+    throw new ApiError(400, "VALIDATION", "degree, institution, year are required");
+  }
+
+  req.user.education.push({
+    degree: String(degree),
+    institution: String(institution),
+    year: String(year),
+    gpa: gpa ? String(gpa) : undefined,
+  });
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Education added");
+});
+
+export const updateEducation = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { id } = req.params;
+  const edu = (req.user.education || []).id(id);
+  if (!edu) throw new ApiError(404, "EDUCATION_NOT_FOUND", "Education not found");
+
+  const { degree, institution, year, gpa } = req.body || {};
+  if (degree !== undefined) edu.degree = String(degree);
+  if (institution !== undefined) edu.institution = String(institution);
+  if (year !== undefined) edu.year = String(year);
+  if (gpa !== undefined) edu.gpa = gpa ? String(gpa) : "";
+
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Education updated");
+});
+
+export const deleteEducation = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  const { id } = req.params;
+  const edu = (req.user.education || []).id(id);
+  if (!edu) throw new ApiError(404, "EDUCATION_NOT_FOUND", "Education not found");
+  edu.deleteOne();
+  await req.user.save();
+  return ok(res, { user: mapUser(req.user) }, "Education deleted");
+});

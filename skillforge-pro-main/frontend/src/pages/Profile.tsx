@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -26,13 +26,62 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import {
+  useAddSkill,
+  useDeleteSkill,
+  useAddExperience,
+  useDeleteExperience,
+  useAddEducation,
+  useDeleteEducation,
+} from "@/lib/apiHooks";
+import { toast } from "@/hooks/use-toast";
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
+
+  const addSkillMutation = useAddSkill();
+  const deleteSkillMutation = useDeleteSkill();
+  const addExperienceMutation = useAddExperience();
+  const deleteExperienceMutation = useDeleteExperience();
+  const addEducationMutation = useAddEducation();
+  const deleteEducationMutation = useDeleteEducation();
+
+  const [newSkill, setNewSkill] = useState({ name: "", level: 80 });
+  const [newExp, setNewExp] = useState({
+    title: "",
+    company: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    current: false,
+    description: "",
+  });
+  const [newEdu, setNewEdu] = useState({ degree: "", institution: "", year: "", gpa: "" });
+
+  const busy =
+    addSkillMutation.isPending ||
+    deleteSkillMutation.isPending ||
+    addExperienceMutation.isPending ||
+    deleteExperienceMutation.isPending ||
+    addEducationMutation.isPending ||
+    deleteEducationMutation.isPending;
+
+  const onSaveToggle = async () => {
+    if (!editMode) {
+      setEditMode(true);
+      return;
+    }
+    // For now, CRUD operations save immediately; this button just exits edit mode.
+    setEditMode(false);
+    toast({ title: "Saved", description: "Profile changes have been saved." });
+  };
+
+  const safeUserName = useMemo(() => user?.name || "", [user?.name]);
 
   const tabs = [
     { id: "overview", label: "Overview" },
@@ -65,7 +114,7 @@ export default function Profile() {
               <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div>
-                    <h1 className="font-display text-2xl md:text-3xl font-bold">{user?.name}</h1>
+                    <h1 className="font-display text-2xl md:text-3xl font-bold">{safeUserName}</h1>
                     <p className="text-muted-foreground text-lg">Senior Frontend Developer</p>
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
@@ -82,7 +131,7 @@ export default function Profile() {
                       </span>
                     </div>
                   </div>
-                  <GradientButton onClick={() => setEditMode(!editMode)}>
+                  <GradientButton onClick={onSaveToggle} disabled={busy}>
                     <Edit2 className="h-4 w-4" />
                     {editMode ? "Save Changes" : "Edit Profile"}
                   </GradientButton>
@@ -236,11 +285,95 @@ export default function Profile() {
         {activeTab === "experience" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm">
+              <GradientButton size="sm" disabled={!editMode || busy}>
                 <Plus className="h-4 w-4" />
                 Add Experience
               </GradientButton>
             </div>
+
+            {editMode && (
+              <GlassCard className="p-6">
+                <h3 className="font-display text-lg font-semibold mb-4">Add Experience</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input value={newExp.title} onChange={(e) => setNewExp((p) => ({ ...p, title: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Company</Label>
+                    <Input value={newExp.company} onChange={(e) => setNewExp((p) => ({ ...p, company: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input value={newExp.location} onChange={(e) => setNewExp((p) => ({ ...p, location: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Input value={newExp.startDate} onChange={(e) => setNewExp((p) => ({ ...p, startDate: e.target.value }))} placeholder="2024-01" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Present</Label>
+                      <Switch
+                        checked={newExp.current}
+                        onCheckedChange={(checked) =>
+                          setNewExp((p) => ({
+                            ...p,
+                            current: checked,
+                            endDate: checked ? "" : p.endDate,
+                          }))
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      If you are currently working here, turn this on.
+                    </p>
+                  </div>
+
+                  {!newExp.current && (
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <Input
+                        value={newExp.endDate}
+                        onChange={(e) => setNewExp((p) => ({ ...p, endDate: e.target.value }))}
+                        placeholder="2025-01"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Description</Label>
+                    <Textarea value={newExp.description} onChange={(e) => setNewExp((p) => ({ ...p, description: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <GradientButton
+                    size="sm"
+                    loading={addExperienceMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await addExperienceMutation.mutateAsync({
+                          title: newExp.title,
+                          company: newExp.company,
+                          location: newExp.location,
+                          startDate: newExp.startDate,
+                          endDate: newExp.current ? undefined : newExp.endDate || undefined,
+                          current: newExp.current,
+                          description: newExp.description,
+                        });
+                        await refreshMe();
+                        setNewExp({ title: "", company: "", location: "", startDate: "", endDate: "", current: false, description: "" });
+                        toast({ title: "Added", description: "Experience added." });
+                      } catch (e) {
+                        toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Save Experience
+                  </GradientButton>
+                </div>
+              </GlassCard>
+            )}
+
             {user?.experience?.map((exp) => (
               <StaggerItem key={exp.id}>
                 <GlassCard className="p-6">
@@ -266,7 +399,22 @@ export default function Profile() {
                         <Button variant="ghost" size="icon">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          disabled={deleteExperienceMutation.isPending}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              await deleteExperienceMutation.mutateAsync(exp.id);
+                              await refreshMe();
+                              toast({ title: "Deleted", description: "Experience deleted." });
+                            } catch (err) {
+                              toast({ title: "Failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -281,11 +429,59 @@ export default function Profile() {
         {activeTab === "education" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm">
+              <GradientButton size="sm" disabled={!editMode || busy}>
                 <Plus className="h-4 w-4" />
                 Add Education
               </GradientButton>
             </div>
+
+            {editMode && (
+              <GlassCard className="p-6">
+                <h3 className="font-display text-lg font-semibold mb-4">Add Education</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Degree</Label>
+                    <Input value={newEdu.degree} onChange={(e) => setNewEdu((p) => ({ ...p, degree: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Institution</Label>
+                    <Input value={newEdu.institution} onChange={(e) => setNewEdu((p) => ({ ...p, institution: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Input value={newEdu.year} onChange={(e) => setNewEdu((p) => ({ ...p, year: e.target.value }))} placeholder="2024" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>GPA (optional)</Label>
+                    <Input value={newEdu.gpa} onChange={(e) => setNewEdu((p) => ({ ...p, gpa: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <GradientButton
+                    size="sm"
+                    loading={addEducationMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await addEducationMutation.mutateAsync({
+                          degree: newEdu.degree,
+                          institution: newEdu.institution,
+                          year: newEdu.year,
+                          gpa: newEdu.gpa || undefined,
+                        });
+                        await refreshMe();
+                        setNewEdu({ degree: "", institution: "", year: "", gpa: "" });
+                        toast({ title: "Added", description: "Education added." });
+                      } catch (e) {
+                        toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Save Education
+                  </GradientButton>
+                </div>
+              </GlassCard>
+            )}
+
             {user?.education?.map((edu) => (
               <StaggerItem key={edu.id}>
                 <GlassCard className="p-6">
@@ -313,7 +509,22 @@ export default function Profile() {
                         <Button variant="ghost" size="icon">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          disabled={deleteEducationMutation.isPending}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              await deleteEducationMutation.mutateAsync(edu.id);
+                              await refreshMe();
+                              toast({ title: "Deleted", description: "Education deleted." });
+                            } catch (err) {
+                              toast({ title: "Failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -328,11 +539,52 @@ export default function Profile() {
         {activeTab === "skills" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm">
+              <GradientButton size="sm" disabled={!editMode || busy}>
                 <Plus className="h-4 w-4" />
                 Add Skill
               </GradientButton>
             </div>
+
+            {editMode && (
+              <GlassCard className="p-6">
+                <h3 className="font-display text-lg font-semibold mb-4">Add Skill</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Skill Name</Label>
+                    <Input value={newSkill.name} onChange={(e) => setNewSkill((p) => ({ ...p, name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Level (0-100)</Label>
+                    <Input
+                      type="number"
+                      value={newSkill.level}
+                      onChange={(e) => setNewSkill((p) => ({ ...p, level: Number(e.target.value) }))}
+                      min={0}
+                      max={100}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <GradientButton
+                    size="sm"
+                    loading={addSkillMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await addSkillMutation.mutateAsync({ name: newSkill.name, level: newSkill.level, verified: false });
+                        await refreshMe();
+                        setNewSkill({ name: "", level: 80 });
+                        toast({ title: "Added", description: "Skill saved." });
+                      } catch (e) {
+                        toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Save Skill
+                  </GradientButton>
+                </div>
+              </GlassCard>
+            )}
+
             <StaggerItem>
               <GlassCard className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -353,7 +605,22 @@ export default function Profile() {
                         <Progress value={skill.level} className="h-3" />
                       </div>
                       {editMode && (
-                        <Button variant="ghost" size="icon" className="text-destructive">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          disabled={deleteSkillMutation.isPending}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              await deleteSkillMutation.mutateAsync(skill.name);
+                              await refreshMe();
+                              toast({ title: "Deleted", description: "Skill deleted." });
+                            } catch (err) {
+                              toast({ title: "Failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
