@@ -30,3 +30,8 @@ Error:
 ```json
 { "error": { "code": "...", "message": "..." } }
 ```
+
+## Testing
+
+Run tests:
+- `npm test`   (run all tests)
