@@ -6,7 +6,28 @@ export interface User {
   email: string;
   avatar: string;
   role: "candidate" | "recruiter";
+  phone?: string;
   walletAddress?: string;
+  headline?: string;
+  location?: string;
+  about?: string;
+  socials?: {
+    github?: string;
+    linkedin?: string;
+    website?: string;
+  };
+  settings?: {
+    darkMode?: boolean;
+    language?: string;
+    notifications?: {
+      email?: boolean;
+      push?: boolean;
+      applicationUpdates?: boolean;
+      jobMatches?: boolean;
+      securityAlerts?: boolean;
+    };
+  };
+  emailVerified?: boolean;
   skills?: Skill[];
   experience?: Experience[];
   education?: Education[];

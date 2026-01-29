@@ -3,6 +3,8 @@ import type { Job, Application, Notification, DAOProposal, Candidate, User, Skil
 import { apiFetch, toQueryString } from "@/lib/apiClient";
 import type { RecruiterProfile } from "@/context/AuthContext";
 
+type MeUpdateBody = Partial<Pick<User, "name" | "phone" | "avatar" | "walletAddress" | "headline" | "location" | "about" | "socials" | "settings">>;
+
 export function usePublicJobs(params: {
   search?: string;
   location?: string;
@@ -205,6 +207,17 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (body: { currentPassword: string; newPassword: string }) =>
       apiFetch<{ ok: true }>("/api/settings/password", { method: "POST", body }),
+  });
+}
+
+export function useUpdateMe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: MeUpdateBody) => apiFetch<{ user: User }>("/api/me", { method: "PUT", body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 }
 

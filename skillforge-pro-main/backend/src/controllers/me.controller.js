@@ -58,6 +58,7 @@ function mapUser(user) {
     location: user.location || undefined,
     about: user.about || undefined,
     socials: user.socials || undefined,
+    settings: user.settings || undefined,
     aiScore: user.aiScore ?? undefined,
     reputation: user.reputation ?? undefined,
     skills: Array.isArray(user.skills) ? user.skills.map(mapSkill) : undefined,
@@ -107,6 +108,7 @@ export const updateMe = asyncHandler(async (req, res) => {
     location,
     about,
     socials,
+    settings,
     aiScore,
     reputation,
     skills,
@@ -128,6 +130,23 @@ export const updateMe = asyncHandler(async (req, res) => {
       linkedin: typeof socials.linkedin === "string" ? socials.linkedin : req.user.socials?.linkedin,
       website: typeof socials.website === "string" ? socials.website : req.user.socials?.website,
     };
+  }
+
+  if (settings && typeof settings === "object") {
+    if (typeof settings.darkMode === "boolean") {
+      req.user.settings.darkMode = settings.darkMode;
+    }
+    if (typeof settings.language === "string") {
+      req.user.settings.language = settings.language;
+    }
+    if (settings.notifications && typeof settings.notifications === "object") {
+      const n = settings.notifications;
+      if (typeof n.email === "boolean") req.user.settings.notifications.email = n.email;
+      if (typeof n.push === "boolean") req.user.settings.notifications.push = n.push;
+      if (typeof n.applicationUpdates === "boolean") req.user.settings.notifications.applicationUpdates = n.applicationUpdates;
+      if (typeof n.jobMatches === "boolean") req.user.settings.notifications.jobMatches = n.jobMatches;
+      if (typeof n.securityAlerts === "boolean") req.user.settings.notifications.securityAlerts = n.securityAlerts;
+    }
   }
 
   // Candidate-only fields (frontend uses these)

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Briefcase, Wallet, ChevronDown } from "lucide-react";
+import { Menu, X, Briefcase, Wallet } from "lucide-react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { name: "Find Jobs", href: "/jobs" },
@@ -15,6 +16,16 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, isRecruiter, authInitializing } = useAuth();
+
+  const ctaLabel = isAuthenticated ? "Dashboard" : "Get Started";
+  const ctaHref = isAuthenticated ? (isRecruiter ? "/recruiter/dashboard" : "/dashboard") : "/auth";
+
+  const handleCtaClick = () => {
+    navigate(ctaHref);
+    setIsOpen(false);
+  };
 
   return (
     <motion.header
@@ -62,8 +73,8 @@ export function Navbar() {
               <Wallet className="h-4 w-4" />
               Connect Wallet
             </GradientButton>
-            <GradientButton size="sm">
-              Get Started
+            <GradientButton size="sm" onClick={handleCtaClick} disabled={authInitializing}>
+              {ctaLabel}
             </GradientButton>
           </div>
 
@@ -107,8 +118,13 @@ export function Navbar() {
                     <Wallet className="h-4 w-4" />
                     Connect Wallet
                   </GradientButton>
-                  <GradientButton size="sm" className="w-full">
-                    Get Started
+                  <GradientButton
+                    size="sm"
+                    className="w-full"
+                    onClick={handleCtaClick}
+                    disabled={authInitializing}
+                  >
+                    {ctaLabel}
                   </GradientButton>
                 </div>
               </nav>
