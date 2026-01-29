@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -30,6 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import {
+  useUpdateMe,
   useAddSkill,
   useDeleteSkill,
   useAddExperience,
@@ -44,12 +45,44 @@ export default function Profile() {
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
 
+  const updateMeMutation = useUpdateMe();
   const addSkillMutation = useAddSkill();
   const deleteSkillMutation = useDeleteSkill();
   const addExperienceMutation = useAddExperience();
   const deleteExperienceMutation = useDeleteExperience();
   const addEducationMutation = useAddEducation();
   const deleteEducationMutation = useDeleteEducation();
+
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    phone: "",
+    headline: "",
+    location: "",
+    walletAddress: "",
+    about: "",
+    socials: {
+      github: "",
+      linkedin: "",
+      website: "",
+    },
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setProfileForm({
+      name: user.name || "",
+      phone: user.phone || "",
+      headline: user.headline || "",
+      location: user.location || "",
+      walletAddress: user.walletAddress || "",
+      about: user.about || "",
+      socials: {
+        github: user.socials?.github || "",
+        linkedin: user.socials?.linkedin || "",
+        website: user.socials?.website || "",
+      },
+    });
+  }, [user]);
 
   const [newSkill, setNewSkill] = useState({ name: "", level: 80 });
   const [newExp, setNewExp] = useState({
@@ -64,6 +97,7 @@ export default function Profile() {
   const [newEdu, setNewEdu] = useState({ degree: "", institution: "", year: "", gpa: "" });
 
   const busy =
+    updateMeMutation.isPending ||
     addSkillMutation.isPending ||
     deleteSkillMutation.isPending ||
     addExperienceMutation.isPending ||
@@ -76,12 +110,45 @@ export default function Profile() {
       setEditMode(true);
       return;
     }
-    // For now, CRUD operations save immediately; this button just exits edit mode.
-    setEditMode(false);
-    toast({ title: "Saved", description: "Profile changes have been saved." });
+
+    try {
+      await updateMeMutation.mutateAsync({
+        name: profileForm.name,
+        phone: profileForm.phone,
+        headline: profileForm.headline,
+        location: profileForm.location,
+        walletAddress: profileForm.walletAddress,
+        about: profileForm.about,
+        socials: profileForm.socials,
+      });
+      await refreshMe();
+      setEditMode(false);
+      toast({ title: "Saved", description: "Profile updated successfully." });
+    } catch (e: any) {
+      toast({
+        title: "Unable to save",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
   const safeUserName = useMemo(() => user?.name || "", [user?.name]);
+  const safeHeadline = useMemo(() => user?.headline || "", [user?.headline]);
+  const safeLocation = useMemo(() => user?.location || "", [user?.location]);
+  const safeWallet = useMemo(() => user?.walletAddress || "", [user?.walletAddress]);
+  const safeAbout = useMemo(() => user?.about || "", [user?.about]);
+
+  const socialLinks = useMemo(() => {
+    const github = user?.socials?.github?.trim();
+    const linkedin = user?.socials?.linkedin?.trim();
+    const website = user?.socials?.website?.trim();
+    return {
+      github: github ? (github.startsWith("http") ? github : `https://github.com/${github}`) : "",
+      linkedin: linkedin ? (linkedin.startsWith("http") ? linkedin : `https://linkedin.com/in/${linkedin}`) : "",
+      website: website || "",
+    };
+  }, [user?.socials?.github, user?.socials?.linkedin, user?.socials?.website]);
 
   const tabs = [
     { id: "overview", label: "Overview" },
@@ -114,8 +181,36 @@ export default function Profile() {
               <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div>
-                    <h1 className="font-display text-2xl md:text-3xl font-bold">{safeUserName}</h1>
-                    <p className="text-muted-foreground text-lg">Senior Frontend Developer</p>
+                    {editMode ? (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="name">Name</Label>
+                          <Input
+                            id="name"
+                            value={profileForm.name}
+                            onChange={(e) => setProfileForm((p) => ({ ...p, name: e.target.value }))}
+                            placeholder="Your name"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="headline">Headline</Label>
+                          <Input
+                            id="headline"
+                            value={profileForm.headline}
+                            onChange={(e) => setProfileForm((p) => ({ ...p, headline: e.target.value }))}
+                            placeholder="e.g. Frontend Developer"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h1 className="font-display text-2xl md:text-3xl font-bold">{safeUserName}</h1>
+                        <p className="text-muted-foreground text-lg">
+                          {safeHeadline || "Add your headline"}
+                        </p>
+                      </>
+                    )}
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Mail className="h-4 w-4" />
@@ -123,13 +218,45 @@ export default function Profile() {
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        San Francisco, CA
+                        {editMode ? (
+                          <Input
+                            value={profileForm.location}
+                            onChange={(e) => setProfileForm((p) => ({ ...p, location: e.target.value }))}
+                            placeholder="Your location"
+                            className="h-8 w-56"
+                          />
+                        ) : (
+                          safeLocation || "Add location"
+                        )}
                       </span>
                       <span className="flex items-center gap-1">
                         <Wallet className="h-4 w-4" />
-                        {user?.walletAddress}
+                        {editMode ? (
+                          <Input
+                            value={profileForm.walletAddress}
+                            onChange={(e) => setProfileForm((p) => ({ ...p, walletAddress: e.target.value }))}
+                            placeholder="0x..."
+                            className="h-8 w-56"
+                          />
+                        ) : (
+                          safeWallet || "Add wallet"
+                        )}
                       </span>
                     </div>
+
+                    {editMode && (
+                      <div className="mt-4 space-y-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={profileForm.phone}
+                            onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))}
+                            placeholder="Phone number"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <GradientButton onClick={onSaveToggle} disabled={busy}>
                     <Edit2 className="h-4 w-4" />
@@ -159,15 +286,82 @@ export default function Profile() {
 
                 {/* Social Links */}
                 <div className="flex gap-3 mt-6">
-                  <a href="#" className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <Github className="h-5 w-5" />
-                  </a>
-                  <a href="#" className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <Linkedin className="h-5 w-5" />
-                  </a>
-                  <a href="#" className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <Globe className="h-5 w-5" />
-                  </a>
+                  {editMode ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+                      <div className="space-y-1">
+                        <Label htmlFor="github">GitHub</Label>
+                        <Input
+                          id="github"
+                          value={profileForm.socials.github}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, socials: { ...p.socials, github: e.target.value } }))
+                          }
+                          placeholder="username or URL"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="linkedin">LinkedIn</Label>
+                        <Input
+                          id="linkedin"
+                          value={profileForm.socials.linkedin}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, socials: { ...p.socials, linkedin: e.target.value } }))
+                          }
+                          placeholder="username or URL"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="website">Website</Label>
+                        <Input
+                          id="website"
+                          value={profileForm.socials.website}
+                          onChange={(e) =>
+                            setProfileForm((p) => ({ ...p, socials: { ...p.socials, website: e.target.value } }))
+                          }
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <a
+                        href={socialLinks.github || "#"}
+                        target={socialLinks.github ? "_blank" : undefined}
+                        rel={socialLinks.github ? "noreferrer" : undefined}
+                        className={
+                          "p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors" +
+                          (!socialLinks.github ? " opacity-50 pointer-events-none" : "")
+                        }
+                        aria-label="GitHub"
+                      >
+                        <Github className="h-5 w-5" />
+                      </a>
+                      <a
+                        href={socialLinks.linkedin || "#"}
+                        target={socialLinks.linkedin ? "_blank" : undefined}
+                        rel={socialLinks.linkedin ? "noreferrer" : undefined}
+                        className={
+                          "p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors" +
+                          (!socialLinks.linkedin ? " opacity-50 pointer-events-none" : "")
+                        }
+                        aria-label="LinkedIn"
+                      >
+                        <Linkedin className="h-5 w-5" />
+                      </a>
+                      <a
+                        href={socialLinks.website || "#"}
+                        target={socialLinks.website ? "_blank" : undefined}
+                        rel={socialLinks.website ? "noreferrer" : undefined}
+                        className={
+                          "p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors" +
+                          (!socialLinks.website ? " opacity-50 pointer-events-none" : "")
+                        }
+                        aria-label="Website"
+                      >
+                        <Globe className="h-5 w-5" />
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -207,11 +401,12 @@ export default function Profile() {
                   <Textarea
                     placeholder="Tell us about yourself..."
                     className="min-h-[150px]"
-                    defaultValue="Passionate full-stack developer with 5+ years of experience in building scalable web applications. Specialized in React, Node.js, and blockchain technologies. Love creating intuitive user experiences and solving complex problems."
+                    value={profileForm.about}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, about: e.target.value }))}
                   />
                 ) : (
                   <p className="text-muted-foreground">
-                    Passionate full-stack developer with 5+ years of experience in building scalable web applications. Specialized in React, Node.js, and blockchain technologies. Love creating intuitive user experiences and solving complex problems.
+                    {safeAbout || "Add an about section"}
                   </p>
                 )}
               </GlassCard>

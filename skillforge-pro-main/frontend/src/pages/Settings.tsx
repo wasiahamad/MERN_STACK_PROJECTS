@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -11,10 +11,7 @@ import {
   Mail,
   Smartphone,
   Key,
-  Eye,
-  EyeOff,
   Save,
-  LogOut,
   Trash2,
   Link as LinkIcon,
   CheckCircle,
@@ -29,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
+import { useChangePassword, useUpdateMe } from "@/lib/apiHooks";
 
 const tabs = [
   { id: "account", label: "Account", icon: User },
@@ -38,9 +37,122 @@ const tabs = [
 ];
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, refreshMe, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
-  const [darkMode, setDarkMode] = useState(false);
+  const updateMeMutation = useUpdateMe();
+  const changePasswordMutation = useChangePassword();
+  const { theme, setTheme } = useTheme();
+
+  const [accountForm, setAccountForm] = useState({
+    name: "",
+    phone: "",
+    walletAddress: "",
+    language: "en-US",
+  });
+
+  const [notificationForm, setNotificationForm] = useState({
+    email: true,
+    push: false,
+    applicationUpdates: true,
+    jobMatches: true,
+    securityAlerts: true,
+  });
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setAccountForm({
+      name: user.name || "",
+      phone: user.phone || "",
+      walletAddress: user.walletAddress || "",
+      language: user.settings?.language || "en-US",
+    });
+    setNotificationForm({
+      email: user.settings?.notifications?.email ?? true,
+      push: user.settings?.notifications?.push ?? false,
+      applicationUpdates: user.settings?.notifications?.applicationUpdates ?? true,
+      jobMatches: user.settings?.notifications?.jobMatches ?? true,
+      securityAlerts: user.settings?.notifications?.securityAlerts ?? true,
+    });
+  }, [user]);
+
+  const isDark = useMemo(() => (theme ?? "system") === "dark", [theme]);
+
+  const busy = updateMeMutation.isPending || changePasswordMutation.isPending;
+
+  const saveAccountAndPreferences = async () => {
+    try {
+      await updateMeMutation.mutateAsync({
+        name: accountForm.name,
+        phone: accountForm.phone,
+        walletAddress: accountForm.walletAddress,
+        settings: {
+          darkMode: isDark,
+          language: accountForm.language,
+          notifications: notificationForm,
+        },
+      });
+      await refreshMe();
+      toast({ title: "Saved", description: "Settings updated successfully." });
+    } catch (e: any) {
+      toast({
+        title: "Unable to save",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveNotificationsOnly = async () => {
+    try {
+      await updateMeMutation.mutateAsync({
+        settings: { darkMode: isDark, language: accountForm.language, notifications: notificationForm },
+      });
+      await refreshMe();
+      toast({ title: "Saved", description: "Notification preferences updated." });
+    } catch (e: any) {
+      toast({
+        title: "Unable to save",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      toast({ title: "Missing fields", description: "Please fill all password fields.", variant: "destructive" });
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast({ title: "Weak password", description: "New password must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({ title: "Mismatch", description: "Confirm password does not match.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await changePasswordMutation.mutateAsync({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast({ title: "Password updated" });
+    } catch (e: any) {
+      toast({
+        title: "Unable to update password",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -95,20 +207,37 @@ export default function Settings() {
                   {/* Profile Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" defaultValue={user?.name?.split(" ")[0]} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" defaultValue={user?.name?.split(" ")[1]} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" defaultValue={user?.email} className="mt-1" />
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={accountForm.name}
+                        onChange={(e) => setAccountForm((p) => ({ ...p, name: e.target.value }))}
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" placeholder="+1 (555) 000-0000" className="mt-1" />
+                      <Input
+                        id="phone"
+                        placeholder="+1 (555) 000-0000"
+                        value={accountForm.phone}
+                        onChange={(e) => setAccountForm((p) => ({ ...p, phone: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" value={user?.email || ""} className="mt-1" disabled />
+                    </div>
+                    <div>
+                      <Label htmlFor="walletAddress">Wallet Address</Label>
+                      <Input
+                        id="walletAddress"
+                        placeholder="0x..."
+                        value={accountForm.walletAddress}
+                        onChange={(e) => setAccountForm((p) => ({ ...p, walletAddress: e.target.value }))}
+                        className="mt-1"
+                      />
                     </div>
                   </div>
 
@@ -118,29 +247,38 @@ export default function Settings() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {darkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                          {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
                           <div>
                             <p className="font-medium">Dark Mode</p>
                             <p className="text-sm text-muted-foreground">Toggle dark theme</p>
                           </div>
                         </div>
-                        <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                        <Switch
+                          checked={isDark}
+                          onCheckedChange={(checked) => {
+                            setTheme(checked ? "dark" : "light");
+                          }}
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Globe className="h-5 w-5" />
                           <div>
                             <p className="font-medium">Language</p>
-                            <p className="text-sm text-muted-foreground">English (US)</p>
+                            <p className="text-sm text-muted-foreground">Language code</p>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">Change</Button>
+                        <Input
+                          value={accountForm.language}
+                          onChange={(e) => setAccountForm((p) => ({ ...p, language: e.target.value }))}
+                          className="h-9 w-32"
+                        />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex justify-end">
-                    <GradientButton onClick={() => toast({ title: "Settings Saved!", description: "Your account settings have been updated." })}>
+                    <GradientButton onClick={saveAccountAndPreferences} disabled={busy}>
                       <Save className="h-4 w-4" />
                       Save Changes
                     </GradientButton>
@@ -155,30 +293,89 @@ export default function Settings() {
 
                 <div className="space-y-6">
                   <div className="space-y-4">
-                    {[
-                      { icon: Mail, title: "Email Notifications", desc: "Receive updates via email" },
-                      { icon: Smartphone, title: "Push Notifications", desc: "Receive push notifications" },
-                      { icon: Bell, title: "Application Updates", desc: "Get notified about your applications" },
-                      { icon: User, title: "New Job Matches", desc: "Notify when new jobs match your profile" },
-                      { icon: Shield, title: "Security Alerts", desc: "Important security notifications" },
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 rounded-xl border border-border">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                            <item.icon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{item.title}</p>
-                            <p className="text-sm text-muted-foreground">{item.desc}</p>
-                          </div>
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Mail className="h-5 w-5 text-primary" />
                         </div>
-                        <Switch defaultChecked={index < 3} />
+                        <div>
+                          <p className="font-medium">Email Notifications</p>
+                          <p className="text-sm text-muted-foreground">Receive updates via email</p>
+                        </div>
                       </div>
-                    ))}
+                      <Switch
+                        checked={notificationForm.email}
+                        onCheckedChange={(checked) => setNotificationForm((p) => ({ ...p, email: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Smartphone className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Push Notifications</p>
+                          <p className="text-sm text-muted-foreground">Receive push notifications</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={notificationForm.push}
+                        onCheckedChange={(checked) => setNotificationForm((p) => ({ ...p, push: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Bell className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Application Updates</p>
+                          <p className="text-sm text-muted-foreground">Get notified about your applications</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={notificationForm.applicationUpdates}
+                        onCheckedChange={(checked) => setNotificationForm((p) => ({ ...p, applicationUpdates: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">New Job Matches</p>
+                          <p className="text-sm text-muted-foreground">Notify when new jobs match your profile</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={notificationForm.jobMatches}
+                        onCheckedChange={(checked) => setNotificationForm((p) => ({ ...p, jobMatches: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Shield className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Security Alerts</p>
+                          <p className="text-sm text-muted-foreground">Important security notifications</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={notificationForm.securityAlerts}
+                        onCheckedChange={(checked) => setNotificationForm((p) => ({ ...p, securityAlerts: checked }))}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex justify-end">
-                    <GradientButton onClick={() => toast({ title: "Preferences Saved!" })}>
+                    <GradientButton onClick={saveNotificationsOnly} disabled={busy}>
                       <Save className="h-4 w-4" />
                       Save Preferences
                     </GradientButton>
@@ -198,18 +395,36 @@ export default function Settings() {
                     <div className="grid gap-4">
                       <div>
                         <Label htmlFor="currentPassword">Current Password</Label>
-                        <Input id="currentPassword" type="password" className="mt-1" />
+                        <Input
+                          id="currentPassword"
+                          type="password"
+                          className="mt-1"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="newPassword">New Password</Label>
-                        <Input id="newPassword" type="password" className="mt-1" />
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          className="mt-1"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                        <Input id="confirmPassword" type="password" className="mt-1" />
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          className="mt-1"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                        />
                       </div>
                     </div>
-                    <Button onClick={() => toast({ title: "Password Updated!" })}>Update Password</Button>
+                    <Button onClick={onChangePassword} disabled={busy}>Update Password</Button>
                   </div>
 
                   {/* Two Factor Auth */}
@@ -264,6 +479,17 @@ export default function Settings() {
                       Delete Account
                     </Button>
                   </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        logout();
+                      }}
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </div>
               </GlassCard>
             )}
@@ -298,6 +524,23 @@ export default function Settings() {
                       <Button variant="outline" size="sm" className="text-destructive">
                         Disconnect
                       </Button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-semibold mb-4">Update Wallet Address</h3>
+                    <div className="space-y-3">
+                      <Input
+                        value={accountForm.walletAddress}
+                        onChange={(e) => setAccountForm((p) => ({ ...p, walletAddress: e.target.value }))}
+                        placeholder="0x..."
+                      />
+                      <div className="flex justify-end">
+                        <GradientButton onClick={saveAccountAndPreferences} disabled={busy}>
+                          <Save className="h-4 w-4" />
+                          Save Wallet
+                        </GradientButton>
+                      </div>
                     </div>
                   </div>
 
