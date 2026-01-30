@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   MapPin,
   Briefcase,
-  DollarSign,
+  IndianRupee,
   Clock,
   Users,
   Eye,
@@ -14,7 +14,6 @@ import {
   Bookmark,
   Building,
   Globe,
-  Shield,
   Sparkles,
   X,
   Send,
@@ -30,12 +29,12 @@ import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { useApplyToJob, usePublicJob } from "@/lib/apiHooks";
+import { useApplyToJob, usePublicJob, useToggleSaveJob } from "@/lib/apiHooks";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
 export default function JobDetail() {
   const { id } = useParams();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isCandidate, user, refreshMe } = useAuth();
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -44,6 +43,12 @@ export default function JobDetail() {
   const { data, isLoading, isError, error } = usePublicJob(id);
   const job = data?.job;
   const applyMutation = useApplyToJob(id);
+  const toggleSaveMutation = useToggleSaveJob();
+
+  useEffect(() => {
+    if (!job?.id) return;
+    setSaved(Boolean(user?.savedJobIds?.includes(job.id)));
+  }, [job?.id, user?.savedJobIds]);
 
   const formatPosted = (posted: string) => {
     const d = new Date(posted);
@@ -77,6 +82,63 @@ export default function JobDetail() {
       });
     } finally {
       setApplying(false);
+    }
+  };
+
+  const handleToggleSave = async () => {
+    if (!job?.id) return;
+    if (!isAuthenticated) {
+      toast({
+        title: "Login required",
+        description: "Please login to save this job.",
+      });
+      return;
+    }
+    if (!isCandidate) {
+      toast({
+        title: "Not allowed",
+        description: "Only candidates can save jobs.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const res = await toggleSaveMutation.mutateAsync(job.id);
+      setSaved(res.saved);
+      await refreshMe();
+      toast({
+        title: res.saved ? "Job Saved!" : "Removed from saved",
+        description: res.saved ? "It will appear in your profile." : "Job removed from your saved list.",
+      });
+    } catch (e) {
+      toast({
+        title: "Save failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleShare = async () => {
+    if (!job) return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: job.title,
+          text: `${job.title} at ${job.company}`,
+          url,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "Job link copied to clipboard." });
+    } catch (e) {
+      toast({
+        title: "Share failed",
+        description: e instanceof Error ? e.message : "Couldn't share this job.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -243,13 +305,19 @@ export default function JobDetail() {
                           {job.type}
                         </span>
                         <span className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />
+                          <IndianRupee className="h-4 w-4" />
                           {job.salary}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
                           Posted {formatPosted(job.posted)}
                         </span>
+                        {job.experience ? (
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="h-4 w-4" />
+                            {job.experience}
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
@@ -284,18 +352,13 @@ export default function JobDetail() {
                     <Button
                       variant="outline"
                       size="lg"
-                      onClick={() => {
-                        setSaved(!saved);
-                        toast({
-                          title: saved ? "Removed from saved" : "Job Saved!",
-                          description: saved ? "Job removed from your saved list" : "You can find it in your saved jobs",
-                        });
-                      }}
+                      disabled={toggleSaveMutation.isPending}
+                      onClick={handleToggleSave}
                     >
                       <Bookmark className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
                       {saved ? "Saved" : "Save Job"}
                     </Button>
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="lg" onClick={handleShare}>
                       <Share2 className="h-4 w-4" />
                       Share
                     </Button>
@@ -453,14 +516,14 @@ export default function JobDetail() {
                     </div>
                     <div>
                       <h4 className="font-semibold">{job.company || "Company"}</h4>
-                      <p className="text-sm text-muted-foreground">{"Technology"}</p>
+                      <p className="text-sm text-muted-foreground">{job.industry || "—"}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Building className="h-4 w-4" />
-                      {"N/A"}
+                      <span>{job.companySize || "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
@@ -468,21 +531,27 @@ export default function JobDetail() {
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Globe className="h-4 w-4" />
-                      <span className="text-muted-foreground">{job.company ? "Website not provided" : "—"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Shield className="h-4 w-4" />
-                      Trust Score: <span className="text-success font-medium">{"—"}</span>
+                      {job.companyWebsite ? (
+                        <a
+                          className="text-primary hover:underline"
+                          href={job.companyWebsite.startsWith("http") ? job.companyWebsite : `https://${job.companyWebsite}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {job.companyWebsite}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </div>
                   </div>
 
-                  <p className="text-muted-foreground text-sm mt-4">
-                    Company details will appear here when provided by recruiters.
-                  </p>
-
                   <div className="mt-4 pt-4 border-t border-border">
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{"—"}</span> open positions
+                      <span className="font-medium text-foreground">
+                        {typeof job.openPositions === "number" ? job.openPositions : "—"}
+                      </span>{" "}
+                      open positions
                     </p>
                   </div>
                 </GlassCard>

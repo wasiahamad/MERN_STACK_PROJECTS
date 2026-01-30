@@ -39,6 +39,8 @@ const UserSchema = new mongoose.Schema(
     aiScore: { type: Number, default: null },
     reputation: { type: Number, default: null },
 
+    savedJobs: { type: [mongoose.Schema.Types.ObjectId], ref: "Job", default: [] },
+
     skills: {
       type: [
         {

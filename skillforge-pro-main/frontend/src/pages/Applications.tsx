@@ -9,7 +9,7 @@ import {
   Star,
   MapPin,
   Briefcase,
-  DollarSign,
+  IndianRupee,
   Calendar,
   ArrowRight,
   Search,
@@ -239,7 +239,7 @@ function ApplicationCard({ application }: { application: Application }) {
                     {job?.type || ""}
                   </span>
                   <span className="flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" />
+                      <IndianRupee className="h-4 w-4" />
                     {job?.salary || ""}
                   </span>
                   <span className="flex items-center gap-1">

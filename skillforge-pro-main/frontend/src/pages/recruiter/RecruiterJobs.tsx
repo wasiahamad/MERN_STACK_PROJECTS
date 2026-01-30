@@ -25,6 +25,7 @@ import { StaggerContainer, StaggerItem } from "@/components/ui/animated-containe
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "@/hooks/use-toast";
 import { useDeleteRecruiterJob, useRecruiterJobs } from "@/lib/apiHooks";
+import { formatInrRange } from "@/lib/formatters";
 
 const statusOptions = [
   { id: "all", label: "All Jobs" },
@@ -50,8 +51,7 @@ type RecruiterJob = {
 };
 
 function formatSalary(min?: number, max?: number) {
-  if (typeof min !== "number" || typeof max !== "number") return "";
-  return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
+  return formatInrRange(min ?? null, max ?? null);
 }
 
 export default function RecruiterJobs() {

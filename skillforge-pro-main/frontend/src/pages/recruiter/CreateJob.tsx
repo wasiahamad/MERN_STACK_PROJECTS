@@ -7,7 +7,7 @@ import {
   X,
   Briefcase,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Clock,
   Award,
   Sparkles,
@@ -69,14 +69,25 @@ export default function CreateJob() {
     const title = String(form.get("title") || "").trim();
     const location = String(form.get("location") || "").trim();
     const type = String(form.get("type") || "").trim();
-    const salaryMin = Number(String(form.get("salaryMin") || "0").trim());
-    const salaryMax = Number(String(form.get("salaryMax") || "0").trim());
+    const salaryMinRaw = String(form.get("salaryMin") ?? "").trim();
+    const salaryMaxRaw = String(form.get("salaryMax") ?? "").trim();
+    const salaryMin = salaryMinRaw ? Number(salaryMinRaw) : NaN;
+    const salaryMax = salaryMaxRaw ? Number(salaryMaxRaw) : NaN;
     const experience = String(form.get("experience") || "").trim();
     const description = String(form.get("description") || "").trim();
     const minAiScoreRaw = String(form.get("minAiScore") || "").trim();
     const minAiScore = minAiScoreRaw ? Number(minAiScoreRaw) : null;
 
     try {
+      if (!Number.isFinite(salaryMin) || !Number.isFinite(salaryMax) || salaryMin < 0 || salaryMax < 0 || salaryMax < salaryMin) {
+        toast({
+          variant: "destructive",
+          title: "Invalid salary range",
+          description: "Please enter a valid min and max salary.",
+        });
+        return;
+      }
+
       await createJob.mutateAsync({
         title,
         location,
@@ -172,13 +183,13 @@ export default function CreateJob() {
                   <Label htmlFor="salaryMin">Salary Range *</Label>
                   <div className="flex gap-2 mt-1">
                     <div className="relative flex-1">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="salaryMin" id="salaryMin" placeholder="Min" className="pl-10" required />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input name="salaryMin" id="salaryMin" type="number" min={0} placeholder="Min" className="pl-10" required />
                     </div>
                     <span className="flex items-center text-muted-foreground">-</span>
                     <div className="relative flex-1">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input name="salaryMax" id="salaryMax" placeholder="Max" className="pl-10" required />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input name="salaryMax" id="salaryMax" type="number" min={0} placeholder="Max" className="pl-10" required />
                     </div>
                   </div>
                 </div>

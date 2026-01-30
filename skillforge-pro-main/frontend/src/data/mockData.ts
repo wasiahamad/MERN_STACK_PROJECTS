@@ -34,6 +34,7 @@ export interface User {
   certificates?: Certificate[];
   aiScore?: number;
   reputation?: number;
+  savedJobIds?: string[];
 }
 
 export interface Skill {
@@ -77,10 +78,14 @@ export interface Job {
   title: string;
   company: string;
   logo: string;
+  companyWebsite?: string;
+  industry?: string;
+  companySize?: string;
   location: string;
   type: "Full-time" | "Part-time" | "Contract" | "Remote";
   salary: string;
   posted: string;
+  experience?: string;
   description: string;
   requirements: string[];
   skills: string[];
@@ -90,6 +95,7 @@ export interface Job {
   verified: boolean;
   applicants: number;
   views: number;
+  openPositions?: number;
 }
 
 export interface Application {

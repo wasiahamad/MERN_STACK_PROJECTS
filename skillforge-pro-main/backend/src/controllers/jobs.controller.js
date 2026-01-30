@@ -2,6 +2,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Job } from "../models/Job.js";
+import { User } from "../models/User.js";
+import { Application } from "../models/Application.js";
 
 function asStringArray(v) {
   if (!v) return [];
@@ -13,9 +15,17 @@ function asStringArray(v) {
     .filter(Boolean);
 }
 
+function asNumber(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
 function formatSalary(job) {
   if (typeof job.salaryMin === "number" && typeof job.salaryMax === "number") {
-    return `$${job.salaryMin} - $${job.salaryMax}`;
+    return `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}`;
   }
   return "";
 }
@@ -26,29 +36,54 @@ function mapJobList(job) {
     title: job.title,
     company: job.companyName || "",
     logo: job.companyLogo || "",
+    companyWebsite: job.companyWebsite || "",
+    industry: job.industry || "",
+    companySize: job.companySize || "",
     location: job.location,
     type: job.type,
     salary: formatSalary(job),
     posted: job.createdAt,
     description: job.description,
-    requirements: [],
+    requirements: Array.isArray(job.requirements) ? job.requirements : [],
     skills: job.skills,
     minAiScore: job.minAiScore ?? 0,
     requiredCertificates: job.requiredCertificates || [],
     verified: true,
     applicants: 0,
-    views: 0,
+    views: typeof job.views === "number" ? job.views : 0,
   };
 }
 
-function mapJobDetail(job) {
-  return mapJobList(job);
+function mapJobDetail(job, extra) {
+  return {
+    ...mapJobList(job),
+    applicants: extra?.applicants ?? 0,
+    views: extra?.views ?? (typeof job.views === "number" ? job.views : 0),
+    openPositions: extra?.openPositions ?? undefined,
+  };
 }
 
 export const listPublicJobs = asyncHandler(async (req, res) => {
-  const { search, location, type, page = 1, pageSize = 10, limit, sort, skills } = req.query || {};
+  const {
+    search,
+    location,
+    type,
+    experience,
+    salaryMin,
+    salaryMax,
+    page = 1,
+    pageSize = 10,
+    limit,
+    sort,
+    skills,
+  } = req.query || {};
 
   const q = { status: "active" };
+
+  // If a recruiter is authenticated (optionalAuth), limit them to only their own jobs.
+  if (req.user?.role === "recruiter") {
+    q.recruiterId = req.user._id;
+  }
 
   if (search) {
     q.$or = [
@@ -59,6 +94,13 @@ export const listPublicJobs = asyncHandler(async (req, res) => {
   }
   if (location) q.location = { $regex: String(location), $options: "i" };
   if (type) q.type = String(type);
+  if (experience) q.experience = { $regex: String(experience), $options: "i" };
+
+  const sMin = asNumber(salaryMin);
+  const sMax = asNumber(salaryMax);
+  // Filter by overlap with requested salary band
+  if (sMin !== null) q.salaryMax = { ...(q.salaryMax || {}), $gte: sMin };
+  if (sMax !== null) q.salaryMin = { ...(q.salaryMin || {}), $lte: sMax };
 
   const skillsList = asStringArray(skills);
   if (skillsList.length) {
@@ -96,7 +138,24 @@ export const getPublicJob = asyncHandler(async (req, res) => {
   const job = await Job.findById(id);
   if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
 
-  return ok(res, { job: mapJobDetail(job) }, "Job");
+  // Recruiters should not be able to view other recruiters' jobs.
+  if (req.user?.role === "recruiter" && String(job.recruiterId) !== String(req.user._id)) {
+    throw new ApiError(403, "FORBIDDEN", "Not allowed");
+  }
+
+  // Increment views for anonymous/candidates only.
+  if (!req.user || req.user.role === "candidate") {
+    job.views = (typeof job.views === "number" ? job.views : 0) + 1;
+    await job.save();
+  }
+
+  const applicants = await Application.countDocuments({ jobId: job._id });
+
+  const openPositions = job.companyName
+    ? await Job.countDocuments({ status: "active", companyName: job.companyName })
+    : null;
+
+  return ok(res, { job: mapJobDetail(job, { applicants, views: job.views, openPositions: openPositions ?? undefined }) }, "Job");
 });
 
 export const listRecommendedJobs = asyncHandler(async (req, res) => {
@@ -125,4 +184,27 @@ export const listRecommendedJobs = asyncHandler(async (req, res) => {
     .map((x) => mapJobList(x.job));
 
   return ok(res, { items: scored }, "Recommended jobs");
+});
+
+export const toggleSaveJob = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const job = await Job.findById(id);
+  if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
+
+  const user = await User.findById(req.user._id);
+  if (!user) throw new ApiError(404, "USER_NOT_FOUND", "User not found");
+
+  const key = String(job._id);
+  const existing = Array.isArray(user.savedJobs) ? user.savedJobs.map((x) => String(x)) : [];
+  const isSaved = existing.includes(key);
+
+  if (isSaved) {
+    user.savedJobs = (user.savedJobs || []).filter((x) => String(x) !== key);
+  } else {
+    user.savedJobs = [...(user.savedJobs || []), job._id];
+  }
+
+  await user.save();
+  return ok(res, { saved: !isSaved, jobId: key }, !isSaved ? "Saved" : "Unsaved");
 });

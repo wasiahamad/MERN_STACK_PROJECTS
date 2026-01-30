@@ -5,6 +5,7 @@ import { ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { RecruiterProfile } from "../models/RecruiterProfile.js";
 import { uploadImageBuffer } from "../utils/cloudinary.js";
+import { Job } from "../models/Job.js";
 
 function mapSkill(s) {
   return { name: s.name, level: s.level, verified: !!s.verified };
@@ -66,9 +67,47 @@ function mapUser(user) {
     experience: Array.isArray(user.experience) ? user.experience.map(mapExperience) : undefined,
     education: Array.isArray(user.education) ? user.education.map(mapEducation) : undefined,
     certificates: Array.isArray(user.certificates) ? user.certificates.map(mapCertificate) : undefined,
+    savedJobIds: Array.isArray(user.savedJobs) ? user.savedJobs.map((x) => String(x)) : undefined,
     emailVerified: !!user.emailVerified,
   };
 }
+
+const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+function mapSavedJob(job) {
+  return {
+    id: String(job._id),
+    title: job.title,
+    company: job.companyName || "",
+    logo: job.companyLogo || "",
+    location: job.location,
+    type: job.type,
+    salary: job.salaryMin != null && job.salaryMax != null ? `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}` : "",
+    posted: job.createdAt,
+    description: job.description,
+    requirements: Array.isArray(job.requirements) ? job.requirements : [],
+    skills: job.skills,
+    minAiScore: job.minAiScore ?? 0,
+    requiredCertificates: job.requiredCertificates || [],
+    verified: true,
+    applicants: 0,
+    views: typeof job.views === "number" ? job.views : 0,
+  };
+}
+
+export const listSavedJobs = asyncHandler(async (req, res) => {
+  if (req.user?.role !== "candidate") throw new ApiError(403, "FORBIDDEN", "Candidate only");
+
+  const ids = Array.isArray(req.user.savedJobs) ? req.user.savedJobs : [];
+  if (!ids.length) return ok(res, { items: [] }, "Saved jobs");
+
+  const jobs = await Job.find({ _id: { $in: ids } }).sort({ createdAt: -1 });
+  const byId = new Map(jobs.map((j) => [String(j._id), j]));
+
+  // Preserve user's saved ordering as much as possible
+  const ordered = ids.map((x) => byId.get(String(x))).filter(Boolean);
+  return ok(res, { items: ordered.map(mapSavedJob) }, "Saved jobs");
+});
 
 export const getMe = asyncHandler(async (req, res) => {
   const base = mapUser(req.user);

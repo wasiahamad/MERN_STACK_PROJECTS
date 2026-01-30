@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import {
   useUpdateMe,
   useUploadAvatar,
@@ -38,13 +39,20 @@ import {
   useDeleteExperience,
   useAddEducation,
   useDeleteEducation,
+  useSavedJobs,
 } from "@/lib/apiHooks";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 export default function Profile() {
+  const navigate = useNavigate();
   const { user, refreshMe } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
+
+  const savedJobsQuery = useSavedJobs();
+  const savedJobs = savedJobsQuery.data?.items ?? [];
 
   const updateMeMutation = useUpdateMe();
   const uploadAvatarMutation = useUploadAvatar();
@@ -591,6 +599,68 @@ export default function Profile() {
                 </div>
               </GlassCard>
             </StaggerItem>
+
+            {/* Saved Jobs */}
+            {user?.role === "candidate" ? (
+              <StaggerItem className="lg:col-span-2">
+                <GlassCard className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-display text-lg font-semibold">Saved Jobs</h3>
+                    <a href="/jobs" className="text-primary text-sm hover:underline">
+                      Browse Jobs
+                    </a>
+                  </div>
+
+                  {savedJobsQuery.isLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-4">
+                          <SkeletonLoader className="h-10 w-10 rounded-lg" />
+                          <div className="flex-1 space-y-2">
+                            <SkeletonLoader className="h-4 w-1/2 rounded" />
+                            <SkeletonLoader className="h-3 w-1/3 rounded" />
+                          </div>
+                          <SkeletonLoader className="h-9 w-20 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : savedJobsQuery.isError ? (
+                    <p className="text-sm text-muted-foreground">Failed to load saved jobs.</p>
+                  ) : savedJobs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No saved jobs yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {savedJobs.slice(0, 5).map((job) => (
+                        <div
+                          key={job.id}
+                          className="flex flex-col md:flex-row md:items-center gap-3 rounded-xl border border-border p-4 hover:border-primary/50 transition-colors"
+                        >
+                          <CompanyLogo
+                            logo={job.logo}
+                            alt={job.company ? `${job.company} logo` : "Company logo"}
+                            className="h-10 w-10 rounded-lg bg-muted shrink-0 flex items-center justify-center"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{job.title}</p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {job.company} • {job.location}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9"
+                            onClick={() => navigate(`/jobs/${job.id}`)}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </GlassCard>
+              </StaggerItem>
+            ) : null}
           </StaggerContainer>
         )}
 

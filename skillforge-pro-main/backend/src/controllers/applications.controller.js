@@ -4,6 +4,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
 
+const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
 function mapApplication(app, job) {
   return {
     id: String(app._id),
@@ -22,10 +24,13 @@ function mapApplication(app, job) {
           logo: job.companyLogo || "",
           location: job.location,
           type: job.type,
-          salary: job.salaryMin != null && job.salaryMax != null ? `$${job.salaryMin} - $${job.salaryMax}` : "",
+          salary:
+            job.salaryMin != null && job.salaryMax != null
+              ? `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}`
+              : "",
           posted: job.createdAt,
           description: job.description,
-          requirements: [],
+          requirements: Array.isArray(job.requirements) ? job.requirements : [],
           skills: job.skills,
           minAiScore: job.minAiScore ?? 0,
           requiredCertificates: job.requiredCertificates || [],

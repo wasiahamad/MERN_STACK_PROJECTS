@@ -7,6 +7,7 @@ import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
 
 function asNumber(v) {
+  if (v === "" || v === undefined || v === null) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -51,6 +52,7 @@ export const createJob = asyncHandler(async (req, res) => {
     salaryMax,
     experience,
     description,
+    requirements,
     skills,
     minAiScore,
     requiredCertificates,
@@ -76,6 +78,7 @@ export const createJob = asyncHandler(async (req, res) => {
   }
 
   const certs = Array.isArray(requiredCertificates) ? requiredCertificates : [];
+  const reqs = Array.isArray(requirements) ? requirements : [];
 
   const job = await Job.create({
     recruiterId: req.user._id,
@@ -86,6 +89,7 @@ export const createJob = asyncHandler(async (req, res) => {
     salaryMax: sMax,
     experience: typeof experience === "string" ? experience : "",
     description: String(description),
+    requirements: reqs.map((x) => String(x)).filter(Boolean),
     skills: skills.map((x) => String(x)),
     minAiScore: ai,
     requiredCertificates: certs.map((x) => String(x)),
@@ -126,6 +130,7 @@ export const updateJob = asyncHandler(async (req, res) => {
     salaryMax,
     experience,
     description,
+    requirements,
     skills,
     minAiScore,
     requiredCertificates,
@@ -137,6 +142,11 @@ export const updateJob = asyncHandler(async (req, res) => {
   if (type !== undefined) job.type = String(type);
   if (experience !== undefined) job.experience = typeof experience === "string" ? experience : String(experience);
   if (description !== undefined) job.description = String(description);
+
+  if (requirements !== undefined) {
+    const reqs = Array.isArray(requirements) ? requirements : [];
+    job.requirements = reqs.map((x) => String(x)).filter(Boolean);
+  }
 
   if (skills !== undefined) {
     if (!Array.isArray(skills) || skills.length < 1) {

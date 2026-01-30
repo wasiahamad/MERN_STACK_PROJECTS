@@ -1,13 +1,14 @@
 import express from "express";
 
-import { listPublicJobs, getPublicJob, listRecommendedJobs } from "../controllers/jobs.controller.js";
+import { listPublicJobs, getPublicJob, listRecommendedJobs, toggleSaveJob } from "../controllers/jobs.controller.js";
 import { requireAuth, requireRole, requireVerifiedEmail } from "../middlewares/auth.js";
+import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { applyToJob } from "../controllers/applications.controller.js";
 
 const router = express.Router();
 
 // Public
-router.get("/", listPublicJobs);
+router.get("/", optionalAuth, listPublicJobs);
 
 // Candidate recommendations (must be before /:id)
 router.get(
@@ -17,7 +18,7 @@ router.get(
   requireRole("candidate"),
   listRecommendedJobs
 );
-router.get("/:id", getPublicJob);
+router.get("/:id", optionalAuth, getPublicJob);
 
 // Candidate apply
 router.post(
@@ -26,6 +27,15 @@ router.post(
   requireVerifiedEmail,
   requireRole("candidate"),
   applyToJob
+);
+
+// Candidate save/unsave
+router.post(
+  "/:id/save",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  toggleSaveJob
 );
 
 export default router;

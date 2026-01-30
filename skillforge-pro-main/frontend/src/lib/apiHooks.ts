@@ -9,6 +9,9 @@ export function usePublicJobs(params: {
   search?: string;
   location?: string;
   type?: string;
+  experience?: string;
+  salaryMin?: number;
+  salaryMax?: number;
   page?: number;
   pageSize?: number;
   skills?: string[];
@@ -32,6 +35,24 @@ export function useRecommendedJobs(limit = 3) {
   return useQuery({
     queryKey: ["jobs", "recommended", limit],
     queryFn: () => apiFetch<{ items: Job[] }>(`/api/jobs/recommended${toQueryString({ limit })}`),
+  });
+}
+
+export function useSavedJobs() {
+  return useQuery({
+    queryKey: ["me", "saved-jobs"],
+    queryFn: () => apiFetch<{ items: Job[] }>("/api/me/saved-jobs"),
+  });
+}
+
+export function useToggleSaveJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) => apiFetch<{ saved: boolean; jobId: string }>(`/api/jobs/${jobId}/save`, { method: "POST", body: {} }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "saved-jobs"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 

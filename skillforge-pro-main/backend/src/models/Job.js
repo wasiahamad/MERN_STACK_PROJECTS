@@ -13,12 +13,15 @@ const JobSchema = new mongoose.Schema(
     experience: { type: String, default: "" },
 
     description: { type: String, required: true },
+    requirements: { type: [String], default: [] },
     skills: { type: [String], required: true, default: [] },
 
     minAiScore: { type: Number, default: null },
     requiredCertificates: { type: [String], default: [] },
 
     status: { type: String, enum: ["active", "paused", "closed"], default: "active" },
+
+    views: { type: Number, default: 0 },
 
     // denormalized company snapshot for simple listing
     companyName: { type: String, default: "" },

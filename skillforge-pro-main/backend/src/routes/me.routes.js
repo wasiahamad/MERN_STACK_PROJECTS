@@ -6,6 +6,7 @@ import {
   getMe,
   updateMe,
   uploadAvatar,
+  listSavedJobs,
   addSkill,
   updateSkill,
   deleteSkill,
@@ -29,6 +30,7 @@ const upload = multer({
 });
 
 router.get("/", requireAuth, requireVerifiedEmail, getMe);
+router.get("/saved-jobs", requireAuth, requireVerifiedEmail, listSavedJobs);
 router.put("/", requireAuth, requireVerifiedEmail, updateMe);
 router.post("/avatar", requireAuth, requireVerifiedEmail, upload.single("avatar"), uploadAvatar);
 
