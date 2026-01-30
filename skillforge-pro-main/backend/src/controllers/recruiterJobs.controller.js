@@ -1,6 +1,9 @@
+import mongoose from "mongoose";
+
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { created, ok } from "../utils/responses.js";
+import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
 
 function asNumber(v) {
@@ -207,6 +210,21 @@ export const listJobs = asyncHandler(async (req, res) => {
     Job.countDocuments(q),
   ]);
 
+  const jobIds = items.map((j) => j._id).filter(Boolean);
+  const grouped = jobIds.length
+    ? await Application.aggregate([
+        {
+          $match: {
+            recruiterId: new mongoose.Types.ObjectId(String(req.user._id)),
+            jobId: { $in: jobIds },
+          },
+        },
+        { $group: { _id: "$jobId", count: { $sum: 1 } } },
+      ])
+    : [];
+
+  const applicantsByJobId = new Map(grouped.map((r) => [String(r._id), Number(r.count || 0)]));
+
   return ok(
     res,
     {
@@ -217,7 +235,10 @@ export const listJobs = asyncHandler(async (req, res) => {
         type: job.type,
         salaryMin: job.salaryMin,
         salaryMax: job.salaryMax,
+        experience: job.experience,
+        skills: job.skills,
         status: job.status,
+        applicantsCount: applicantsByJobId.get(String(job._id)) || 0,
         companyName: job.companyName,
         companyLogo: job.companyLogo,
         createdAt: job.createdAt,

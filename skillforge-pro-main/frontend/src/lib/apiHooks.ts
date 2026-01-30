@@ -110,6 +110,27 @@ export function useRecruiterActivity(limit = 10) {
   });
 }
 
+export function useRecruiterStats() {
+  return useQuery({
+    queryKey: ["recruiter", "stats"],
+    queryFn: () =>
+      apiFetch<{
+        jobs: { active: number; total: number };
+        applicants: { total: number };
+        pipeline: {
+          all: number;
+          new: number;
+          reviewed: number;
+          shortlisted: number;
+          interview: number;
+          offered: number;
+          rejected: number;
+        };
+        profile: { isComplete: boolean };
+      }>("/api/recruiter/stats"),
+  });
+}
+
 export function useRecruiterProfile() {
   return useQuery({
     queryKey: ["recruiter", "profile"],
@@ -121,6 +142,21 @@ export function useUpdateRecruiterProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: any) => apiFetch<{ user: User; profile: RecruiterProfile | null }>("/api/recruiter/profile", { method: "PUT", body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "profile"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+}
+
+export function useUploadRecruiterLogo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("logo", file);
+      return apiFetch<{ logo: string; isComplete?: boolean }>("/api/recruiter/profile/logo", { method: "POST", body: form });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["recruiter", "profile"] });
       qc.invalidateQueries({ queryKey: ["me"] });

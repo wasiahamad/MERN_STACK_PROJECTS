@@ -8,12 +8,17 @@ import { createJob, listJobs, getJob, updateJob, deleteJob } from "../controller
 import { listRecruiterCandidates, updateRecruiterCandidateStatus } from "../controllers/recruiterCandidates.controller.js";
 import { listRecruiterActivity } from "../controllers/recruiterActivity.controller.js";
 import { listApplicantsForJob } from "../controllers/applications.controller.js";
+import { getRecruiterStats } from "../controllers/recruiterStats.controller.js";
 
 const router = express.Router();
 
 const upload = multer({
-  dest: "uploads",
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /^image\/(jpeg|jpg|png|webp|gif)$/.test(file.mimetype || "");
+    cb(ok ? null : new Error("Only image files are allowed"), ok);
+  },
 });
 
 router.get("/profile", requireAuth, requireVerifiedEmail, requireRole("recruiter"), getProfile);
@@ -91,6 +96,13 @@ router.delete(
 );
 
 // Recruiter candidates + activity (dashboard)
+router.get(
+  "/stats",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  getRecruiterStats
+);
 router.get(
   "/candidates",
   requireAuth,

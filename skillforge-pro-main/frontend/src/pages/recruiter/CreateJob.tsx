@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { useCreateRecruiterJob } from "@/lib/apiHooks";
 
 const jobTypes = ["Full-time", "Part-time", "Contract", "Remote"];
 const commonSkills = [
@@ -35,6 +36,7 @@ export default function CreateJob() {
   const [certificates, setCertificates] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
   const [newCert, setNewCert] = useState("");
+  const createJob = useCreateRecruiterJob();
 
   const addSkill = (skill: string) => {
     if (skill && !skills.includes(skill)) {
@@ -61,13 +63,47 @@ export default function CreateJob() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setLoading(false);
-    toast({
-      title: "Job Posted Successfully! 🎉",
-      description: "Your job listing is now live and visible to candidates.",
-    });
-    navigate("/recruiter/jobs");
+
+    const form = new FormData(e.currentTarget as HTMLFormElement);
+
+    const title = String(form.get("title") || "").trim();
+    const location = String(form.get("location") || "").trim();
+    const type = String(form.get("type") || "").trim();
+    const salaryMin = Number(String(form.get("salaryMin") || "0").trim());
+    const salaryMax = Number(String(form.get("salaryMax") || "0").trim());
+    const experience = String(form.get("experience") || "").trim();
+    const description = String(form.get("description") || "").trim();
+    const minAiScoreRaw = String(form.get("minAiScore") || "").trim();
+    const minAiScore = minAiScoreRaw ? Number(minAiScoreRaw) : null;
+
+    try {
+      await createJob.mutateAsync({
+        title,
+        location,
+        type,
+        salaryMin,
+        salaryMax,
+        experience,
+        description,
+        skills,
+        minAiScore,
+        requiredCertificates: certificates,
+      });
+
+      toast({
+        title: "Job Posted Successfully!",
+        description: "Your job listing is now live and visible to candidates.",
+      });
+      navigate("/recruiter/jobs");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to post job",
+        description: error?.message || "Please try again",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,18 +145,19 @@ export default function CreateJob() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="title">Job Title *</Label>
-                  <Input id="title" placeholder="e.g., Senior Blockchain Developer" className="mt-1" required />
+                  <Input name="title" id="title" placeholder="e.g., Senior Blockchain Developer" className="mt-1" required />
                 </div>
                 <div>
                   <Label htmlFor="location">Location *</Label>
                   <div className="relative mt-1">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="location" placeholder="e.g., San Francisco, CA or Remote" className="pl-10" required />
+                    <Input name="location" id="location" placeholder="e.g., San Francisco, CA or Remote" className="pl-10" required />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="type">Job Type *</Label>
                   <select
+                    name="type"
                     id="type"
                     className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                     required
@@ -136,12 +173,12 @@ export default function CreateJob() {
                   <div className="flex gap-2 mt-1">
                     <div className="relative flex-1">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="salaryMin" placeholder="Min" className="pl-10" required />
+                      <Input name="salaryMin" id="salaryMin" placeholder="Min" className="pl-10" required />
                     </div>
                     <span className="flex items-center text-muted-foreground">-</span>
                     <div className="relative flex-1">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="salaryMax" placeholder="Max" className="pl-10" required />
+                      <Input name="salaryMax" id="salaryMax" placeholder="Max" className="pl-10" required />
                     </div>
                   </div>
                 </div>
@@ -149,7 +186,7 @@ export default function CreateJob() {
                   <Label htmlFor="experience">Experience Required</Label>
                   <div className="relative mt-1">
                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="experience" placeholder="e.g., 3-5 years" className="pl-10" />
+                    <Input name="experience" id="experience" placeholder="e.g., 3-5 years" className="pl-10" />
                   </div>
                 </div>
               </div>
@@ -165,6 +202,7 @@ export default function CreateJob() {
             <GlassCard className="p-6">
               <h2 className="font-display text-lg font-semibold mb-4">Job Description *</h2>
               <Textarea
+                name="description"
                 placeholder="Describe the role, responsibilities, and what you're looking for..."
                 className="min-h-[200px]"
                 required
@@ -248,6 +286,7 @@ export default function CreateJob() {
                     Only candidates with this score or higher will be prioritized
                   </p>
                   <Input
+                    name="minAiScore"
                     id="minAiScore"
                     type="number"
                     min="0"

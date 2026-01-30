@@ -1,10 +1,9 @@
-import path from "path";
-
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ok } from "../utils/responses.js";
 import { RecruiterProfile, computeRecruiterProfileComplete } from "../models/RecruiterProfile.js";
 import { User } from "../models/User.js";
+import { uploadImageBuffer } from "../utils/cloudinary.js";
 
 export const getProfile = asyncHandler(async (req, res) => {
   const profile = await RecruiterProfile.findOne({ userId: req.user._id });
@@ -105,9 +104,21 @@ export const upsertProfile = asyncHandler(async (req, res) => {
 export const uploadLogo = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, "VALIDATION", "logo file is required");
 
+  const buffer = req.file.buffer;
+  if (!buffer) throw new ApiError(400, "VALIDATION", "logo buffer is required");
+
+  const upload = await uploadImageBuffer(buffer, {
+    folder: "skillforge/company-logos",
+    public_id: `company_${String(req.user._id)}`,
+    transformation: [{ width: 256, height: 256, crop: "fill", gravity: "center" }],
+  });
+
+  const logoUrl = upload?.secure_url || upload?.url;
+  if (!logoUrl) throw new ApiError(500, "LOGO_UPLOAD_FAILED", "Unable to upload logo");
+
   const profile = await RecruiterProfile.findOneAndUpdate(
     { userId: req.user._id },
-    { $set: { logo: path.posix.join("/uploads", req.file.filename) }, $setOnInsert: { userId: req.user._id } },
+    { $set: { logo: String(logoUrl) }, $setOnInsert: { userId: req.user._id } },
     { upsert: true, new: true }
   );
 

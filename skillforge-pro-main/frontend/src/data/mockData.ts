@@ -596,6 +596,9 @@ export const recruiterUser: User = {
 // Mock candidates for recruiter view
 export interface Candidate {
   id: string;
+  applicationId?: string;
+  jobId?: string;
+  jobTitle?: string;
   name: string;
   avatar: string;
   title: string;

@@ -1,31 +1,29 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Search,
-  Filter,
   Star,
   Mail,
   Calendar,
   CheckCircle,
-  XCircle,
-  Clock,
   Eye,
-  Download,
   ChevronDown,
   Shield,
   Sparkles,
-  ExternalLink,
+  Loader2,
 } from "lucide-react";
+
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/ui/glass-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
-import { mockCandidates, Candidate } from "@/data/mockData";
+import type { Candidate } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { useRecruiterCandidates, useRecruiterStats, useUpdateRecruiterCandidateStatus } from "@/lib/apiHooks";
 
 const statusOptions = [
   { id: "all", label: "All Candidates" },
@@ -43,42 +41,85 @@ const statusConfig = {
   interview: { color: "bg-warning/10 text-warning", label: "Interview" },
   offered: { color: "bg-success/10 text-success", label: "Offered" },
   rejected: { color: "bg-destructive/10 text-destructive", label: "Rejected" },
+} as const;
+
+type RecruiterCandidate = Candidate & {
+  applicationId?: string;
+  jobId?: string;
+  jobTitle?: string;
 };
 
 export default function Candidates() {
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get("job") || undefined;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<RecruiterCandidate | null>(null);
 
-  const filteredCandidates = mockCandidates.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const { data: statsData, isLoading: statsLoading } = useRecruiterStats();
+  const { data: candidatesData, isLoading: candidatesLoading, isError: candidatesIsError } = useRecruiterCandidates({
+    search: searchQuery || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    jobId,
+    sort: "matchScore",
+    limit: 100,
   });
+  const updateStatus = useUpdateRecruiterCandidateStatus();
 
-  const handleStatusChange = (candidateId: string, newStatus: string) => {
-    toast({
-      title: "Status Updated",
-      description: `Candidate status changed to ${newStatus}`,
-    });
+  const stats = statsData?.pipeline;
+
+  const candidates = useMemo(() => {
+    const items = (candidatesData?.items || []) as RecruiterCandidate[];
+    return items;
+  }, [candidatesData?.items]);
+
+  const handleStatusChange = (applicationId: string | undefined, newStatus: string) => {
+    if (!applicationId) {
+      toast({
+        variant: "destructive",
+        title: "Missing application",
+        description: "This candidate is missing applicationId (required to update status).",
+      });
+      return;
+    }
+
+    updateStatus.mutate(
+      { applicationId, status: newStatus },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Status Updated",
+            description: `Candidate status changed to ${
+              (statusConfig as any)[newStatus]?.label || newStatus
+            }`,
+          });
+        },
+        onError: (error: any) => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error?.message || "Failed to update status",
+          });
+        },
+      }
+    );
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl md:text-3xl font-bold">
             <span className="gradient-text">Candidates</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Review and manage job applicants
-          </p>
+          <p className="text-muted-foreground mt-1">Review and manage job applicants</p>
+          {jobId && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Filtered by job: <span className="font-mono">{jobId}</span>
+            </p>
+          )}
         </motion.div>
 
         {/* Stats */}
@@ -88,26 +129,28 @@ export default function Candidates() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-5 gap-4"
         >
-          {[
-            { label: "Total", count: mockCandidates.length, color: "bg-muted" },
-            { label: "New", count: mockCandidates.filter((c) => c.status === "new").length, color: "bg-primary/10" },
-            { label: "Shortlisted", count: mockCandidates.filter((c) => c.status === "shortlisted").length, color: "bg-accent/10" },
-            { label: "Interview", count: mockCandidates.filter((c) => c.status === "interview").length, color: "bg-warning/10" },
-            { label: "Offered", count: mockCandidates.filter((c) => c.status === "offered").length, color: "bg-success/10" },
-          ].map((stat) => (
-            <GlassCard key={stat.label} hover={false} className="p-3 text-center">
-              <p className="text-2xl font-bold">{stat.count}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-            </GlassCard>
-          ))}
+          {statsLoading ? (
+            <div className="col-span-full flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            [
+              { label: "Total", count: stats?.all || 0, color: "bg-muted" },
+              { label: "New", count: stats?.new || 0, color: "bg-primary/10" },
+              { label: "Shortlisted", count: stats?.shortlisted || 0, color: "bg-accent/10" },
+              { label: "Interview", count: stats?.interview || 0, color: "bg-warning/10" },
+              { label: "Offered", count: stats?.offered || 0, color: "bg-success/10" },
+            ].map((stat) => (
+              <GlassCard key={stat.label} hover={false} className="p-3 text-center">
+                <p className="text-2xl font-bold">{stat.count}</p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </GlassCard>
+            ))
+          )}
         </motion.div>
 
         {/* Search & Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <GlassCard hover={false} className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
@@ -139,21 +182,27 @@ export default function Candidates() {
         </motion.div>
 
         {/* Candidates List */}
-        <StaggerContainer className="space-y-4">
-          {filteredCandidates
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .map((candidate, index) => (
-            <CandidateCard
-              key={candidate.id}
-              candidate={candidate}
-              rank={index + 1}
-              onStatusChange={handleStatusChange}
-              onSelect={() => setSelectedCandidate(candidate)}
-            />
-          ))}
-        </StaggerContainer>
-
-        {filteredCandidates.length === 0 && (
+        {candidatesLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : candidatesIsError ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+            <p className="text-muted-foreground">Failed to load candidates.</p>
+          </motion.div>
+        ) : candidates.length > 0 ? (
+          <StaggerContainer className="space-y-4">
+            {candidates.map((candidate, index) => (
+              <CandidateCard
+                key={candidate.applicationId || candidate.id}
+                candidate={candidate}
+                rank={index + 1}
+                onStatusChange={handleStatusChange}
+                onSelect={() => setSelectedCandidate(candidate)}
+              />
+            ))}
+          </StaggerContainer>
+        ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
             <p className="text-muted-foreground">No candidates found.</p>
           </motion.div>
@@ -169,13 +218,13 @@ function CandidateCard({
   onStatusChange,
   onSelect,
 }: {
-  candidate: Candidate;
+  candidate: RecruiterCandidate;
   rank: number;
-  onStatusChange: (id: string, status: string) => void;
+  onStatusChange: (applicationId: string | undefined, status: string) => void;
   onSelect: () => void;
 }) {
   const [statusOpen, setStatusOpen] = useState(false);
-  const status = statusConfig[candidate.status];
+  const status = (statusConfig as any)[candidate.status] || statusConfig.new;
 
   const avatarSrc = (() => {
     const a = (candidate.avatar || "").trim();
@@ -219,11 +268,12 @@ function CandidateCard({
               <div>
                 <h3 className="font-display font-semibold text-lg">{candidate.name}</h3>
                 <p className="text-muted-foreground">{candidate.title}</p>
+                {candidate.jobTitle ? (
+                  <p className="text-xs text-muted-foreground mt-1">Applied for: {candidate.jobTitle}</p>
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
-                <Badge className="gradient-primary text-primary-foreground">
-                  {candidate.matchScore}% Match
-                </Badge>
+                <Badge className="gradient-primary text-primary-foreground">{candidate.matchScore}% Match</Badge>
                 <div className="relative">
                   <button
                     onClick={() => setStatusOpen(!statusOpen)}
@@ -238,7 +288,7 @@ function CandidateCard({
                         <button
                           key={key}
                           onClick={() => {
-                            onStatusChange(candidate.id, key);
+                            onStatusChange(candidate.applicationId, key);
                             setStatusOpen(false);
                           }}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-muted capitalize"
@@ -272,11 +322,15 @@ function CandidateCard({
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm">AI Score: <strong>{candidate.aiScore}</strong></span>
+                <span className="text-sm">
+                  AI Score: <strong>{candidate.aiScore}</strong>
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-success" />
-                <span className="text-sm">Reputation: <strong>{candidate.reputation}</strong></span>
+                <span className="text-sm">
+                  Reputation: <strong>{candidate.reputation}</strong>
+                </span>
               </div>
               {candidate.nftCertificates.length > 0 && (
                 <div className="flex items-center gap-1">
