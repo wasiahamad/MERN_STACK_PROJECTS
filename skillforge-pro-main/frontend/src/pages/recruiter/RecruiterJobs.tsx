@@ -13,7 +13,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -23,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import { CardSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "@/hooks/use-toast";
 import { useDeleteRecruiterJob, useRecruiterJobs } from "@/lib/apiHooks";
 
@@ -127,8 +127,10 @@ export default function RecruiterJobs() {
 
         {/* Jobs Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
           </div>
         ) : isError ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">

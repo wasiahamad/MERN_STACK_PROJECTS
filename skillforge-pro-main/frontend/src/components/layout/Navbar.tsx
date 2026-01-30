@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Briefcase, Wallet } from "lucide-react";
@@ -18,6 +18,17 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, isRecruiter, authInitializing } = useAuth();
+  const [brandLoading, setBrandLoading] = useState(false);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      setBrandLoading(false);
+      return;
+    }
+    setBrandLoading(true);
+    const t = setTimeout(() => setBrandLoading(false), 900);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
 
   const ctaLabel = isAuthenticated ? "Dashboard" : "Get Started";
   const ctaHref = isAuthenticated ? (isRecruiter ? "/recruiter/dashboard" : "/dashboard") : "/auth";
@@ -40,9 +51,21 @@ export function Navbar() {
           <Link to="/" className="flex items-center gap-2">
             <motion.div
               whileHover={{ rotate: 10 }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl gradient-primary overflow-hidden"
             >
-              <Briefcase className="h-5 w-5 text-primary-foreground" />
+              <Briefcase className={cn("h-5 w-5 text-primary-foreground transition-opacity", brandLoading ? "opacity-0" : "opacity-100")} />
+              <AnimatePresence>
+                {brandLoading ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0"
+                  >
+                    <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </motion.div>
             <span className="font-display text-xl font-bold">
               Chain<span className="gradient-text">Hire</span>

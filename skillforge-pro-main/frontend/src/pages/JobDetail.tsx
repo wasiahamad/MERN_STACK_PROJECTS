@@ -26,10 +26,12 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useApplyToJob, usePublicJob } from "@/lib/apiHooks";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -47,11 +49,6 @@ export default function JobDetail() {
     const d = new Date(posted);
     if (Number.isNaN(d.getTime())) return posted;
     return d.toLocaleDateString();
-  };
-
-  const renderLogo = (logo: string) => {
-    if (!logo) return "🏢";
-    return logo;
   };
 
   const handleApply = async () => {
@@ -107,7 +104,59 @@ export default function JobDetail() {
         <Navbar />
         <main className="pt-24 pb-16">
           <div className="container mx-auto px-4">
-            <GlassCard className="p-6">Loading job…</GlassCard>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                <GlassCard className="p-6 md:p-8">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    <SkeletonLoader className="h-20 w-20 rounded-2xl" />
+                    <div className="flex-1 space-y-3">
+                      <SkeletonLoader className="h-8 w-2/3 rounded" />
+                      <SkeletonLoader className="h-5 w-1/3 rounded" />
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <SkeletonLoader className="h-4 w-24 rounded" />
+                        <SkeletonLoader className="h-4 w-24 rounded" />
+                        <SkeletonLoader className="h-4 w-24 rounded" />
+                        <SkeletonLoader className="h-4 w-24 rounded" />
+                      </div>
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <SkeletonLoader className="h-4 w-28 rounded" />
+                        <SkeletonLoader className="h-4 w-24 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border">
+                    <SkeletonLoader className="h-11 w-32 rounded-lg" />
+                    <SkeletonLoader className="h-11 w-28 rounded-lg" />
+                    <SkeletonLoader className="h-11 w-28 rounded-lg" />
+                  </div>
+                </GlassCard>
+                <GlassCard className="p-6">
+                  <SkeletonLoader className="h-6 w-48 rounded" />
+                  <div className="mt-4 space-y-2">
+                    <SkeletonLoader className="h-4 w-full rounded" />
+                    <SkeletonLoader className="h-4 w-11/12 rounded" />
+                    <SkeletonLoader className="h-4 w-10/12 rounded" />
+                  </div>
+                </GlassCard>
+              </div>
+              <div className="space-y-6">
+                <GlassCard className="p-6">
+                  <SkeletonLoader className="h-6 w-40 rounded" />
+                  <div className="mt-4 space-y-3">
+                    <SkeletonLoader className="h-10 w-full rounded-lg" />
+                    <SkeletonLoader className="h-10 w-full rounded-lg" />
+                  </div>
+                </GlassCard>
+                <GlassCard className="p-6">
+                  <SkeletonLoader className="h-6 w-44 rounded" />
+                  <div className="mt-4 space-y-3">
+                    <SkeletonLoader className="h-4 w-full rounded" />
+                    <SkeletonLoader className="h-4 w-10/12 rounded" />
+                    <SkeletonLoader className="h-4 w-9/12 rounded" />
+                  </div>
+                </GlassCard>
+              </div>
+            </div>
           </div>
         </main>
         <Footer />
@@ -170,7 +219,7 @@ export default function JobDetail() {
                 <GlassCard className="p-6 md:p-8">
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="h-20 w-20 rounded-2xl bg-muted flex items-center justify-center text-4xl shrink-0">
-                      {renderLogo(job.logo)}
+                      <CompanyLogo logo={job.logo} alt={job.company ? `${job.company} logo` : "Company logo"} className="h-full w-full" />
                     </div>
                     <div className="flex-1">
                       <div className="flex flex-wrap items-start gap-3 mb-2">
@@ -400,7 +449,7 @@ export default function JobDetail() {
                   <h3 className="font-display text-lg font-semibold mb-4">About the Company</h3>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
-                      {renderLogo(job.logo)}
+                      <CompanyLogo logo={job.logo} alt={job.company ? `${job.company} logo` : "Company logo"} className="h-full w-full" />
                     </div>
                     <div>
                       <h4 className="font-semibold">{job.company || "Company"}</h4>
@@ -478,7 +527,7 @@ export default function JobDetail() {
                   <div className="p-4 rounded-xl bg-muted">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 rounded-lg bg-background flex items-center justify-center text-xl">
-                        {renderLogo(job.logo)}
+                        <CompanyLogo logo={job.logo} alt={job.company ? `${job.company} logo` : "Company logo"} className="h-full w-full" />
                       </div>
                       <div>
                         <p className="font-medium">{job.title}</p>

@@ -10,7 +10,6 @@ import {
   Star,
   CheckCircle,
   Clock,
-  Loader2,
   XCircle,
 } from "lucide-react";
 
@@ -19,6 +18,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { Badge } from "@/components/ui/badge";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import type { Candidate } from "@/data/mockData";
 import { useRecruiterActivity, useRecruiterCandidates, useRecruiterJobs, useRecruiterStats } from "@/lib/apiHooks";
 
@@ -143,32 +143,47 @@ export default function RecruiterDashboard() {
 
             {/* Stats */}
             <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {statCards.map((stat) => (
-                <StaggerItem key={stat.title}>
-                  <GlassCard className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-muted-foreground text-sm">{stat.title}</p>
-                        <h3 className="font-display text-3xl font-bold mt-1">{stat.value}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
-                      </div>
-                      <div
-                        className={`h-12 w-12 rounded-xl flex items-center justify-center ${
-                          stat.color === "primary"
-                            ? "bg-primary/10 text-primary"
-                            : stat.color === "accent"
-                            ? "bg-accent/10 text-accent"
-                            : stat.color === "warning"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-success/10 text-success"
-                        }`}
-                      >
-                        <stat.icon className="h-6 w-6" />
-                      </div>
-                    </div>
-                  </GlassCard>
-                </StaggerItem>
-              ))}
+              {statsLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <StaggerItem key={i}>
+                      <GlassCard className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            <SkeletonLoader className="h-4 w-28 rounded" />
+                            <SkeletonLoader className="h-9 w-20 rounded" />
+                            <SkeletonLoader className="h-3 w-32 rounded" />
+                          </div>
+                          <SkeletonLoader className="h-12 w-12 rounded-xl" />
+                        </div>
+                      </GlassCard>
+                    </StaggerItem>
+                  ))
+                : statCards.map((stat) => (
+                    <StaggerItem key={stat.title}>
+                      <GlassCard className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-muted-foreground text-sm">{stat.title}</p>
+                            <h3 className="font-display text-3xl font-bold mt-1">{stat.value}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+                          </div>
+                          <div
+                            className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+                              stat.color === "primary"
+                                ? "bg-primary/10 text-primary"
+                                : stat.color === "accent"
+                                ? "bg-accent/10 text-accent"
+                                : stat.color === "warning"
+                                ? "bg-warning/10 text-warning"
+                                : "bg-success/10 text-success"
+                            }`}
+                          >
+                            <stat.icon className="h-6 w-6" />
+                          </div>
+                        </div>
+                      </GlassCard>
+                    </StaggerItem>
+                  ))}
             </StaggerContainer>
 
             {/* Jobs + Candidates */}
@@ -183,8 +198,17 @@ export default function RecruiterDashboard() {
                   </div>
 
                   {jobsLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading jobs...
+                    <div className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 p-3 rounded-xl border border-border">
+                          <SkeletonLoader className="h-10 w-10 rounded-lg" />
+                          <div className="flex-1 space-y-2">
+                            <SkeletonLoader className="h-4 w-2/3 rounded" />
+                            <SkeletonLoader className="h-3 w-1/2 rounded" />
+                          </div>
+                          <SkeletonLoader className="h-6 w-20 rounded-full" />
+                        </div>
+                      ))}
                     </div>
                   ) : jobs.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No active jobs yet.</p>
@@ -224,8 +248,20 @@ export default function RecruiterDashboard() {
                   </div>
 
                   {candidatesLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading candidates...
+                    <div className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 p-3 rounded-xl border border-border">
+                          <SkeletonLoader className="h-10 w-10 rounded-full" />
+                          <div className="flex-1 space-y-2">
+                            <SkeletonLoader className="h-4 w-1/2 rounded" />
+                            <SkeletonLoader className="h-3 w-2/3 rounded" />
+                          </div>
+                          <div className="space-y-2 text-right">
+                            <SkeletonLoader className="h-6 w-16 rounded-full ml-auto" />
+                            <SkeletonLoader className="h-3 w-12 rounded ml-auto" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : candidates.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No candidates yet.</p>
@@ -283,8 +319,13 @@ export default function RecruiterDashboard() {
               <GlassCard className="p-6">
                 <h3 className="font-display text-lg font-semibold mb-6">Hiring Pipeline</h3>
                 {isLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading pipeline...
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-muted/30 text-center">
+                        <SkeletonLoader className="h-8 w-10 rounded mx-auto" />
+                        <SkeletonLoader className="h-4 w-16 rounded mx-auto mt-2" />
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -308,8 +349,17 @@ export default function RecruiterDashboard() {
                 <h3 className="font-display text-lg font-semibold mb-6">Recent Activity</h3>
 
                 {activityLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading activity...
+                  <div className="space-y-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-start gap-4">
+                        <SkeletonLoader className="h-8 w-8 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <SkeletonLoader className="h-4 w-40 rounded" />
+                          <SkeletonLoader className="h-4 w-10/12 rounded" />
+                          <SkeletonLoader className="h-3 w-24 rounded" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : activity.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No recent activity.</p>

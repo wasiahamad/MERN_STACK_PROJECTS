@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/ui/glass-card";
+import { CardSkeleton, SkeletonLoader } from "@/components/ui/skeleton-loader";
+import { CompanyLogo } from "@/components/ui/company-logo";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
@@ -96,28 +98,35 @@ export default function Applications() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <GlassCard hover={false} className="p-4 text-center">
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-sm text-muted-foreground">Total Applied</p>
-          </GlassCard>
-          <GlassCard hover={false} className="p-4 text-center">
-            <p className="text-2xl font-bold text-warning">
-              {stats.reviewing}
-            </p>
-            <p className="text-sm text-muted-foreground">In Review</p>
-          </GlassCard>
-          <GlassCard hover={false} className="p-4 text-center">
-            <p className="text-2xl font-bold text-accent">
-              {stats.interview}
-            </p>
-            <p className="text-sm text-muted-foreground">Interviews</p>
-          </GlassCard>
-          <GlassCard hover={false} className="p-4 text-center">
-            <p className="text-2xl font-bold text-success">
-              {stats.offered}
-            </p>
-            <p className="text-sm text-muted-foreground">Offers</p>
-          </GlassCard>
+          {isLoading ? (
+            <>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <GlassCard key={i} hover={false} className="p-4 text-center">
+                  <SkeletonLoader className="h-7 w-12 mx-auto rounded" />
+                  <SkeletonLoader className="h-4 w-24 mx-auto rounded mt-2" />
+                </GlassCard>
+              ))}
+            </>
+          ) : (
+            <>
+              <GlassCard hover={false} className="p-4 text-center">
+                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-sm text-muted-foreground">Total Applied</p>
+              </GlassCard>
+              <GlassCard hover={false} className="p-4 text-center">
+                <p className="text-2xl font-bold text-warning">{stats.reviewing}</p>
+                <p className="text-sm text-muted-foreground">In Review</p>
+              </GlassCard>
+              <GlassCard hover={false} className="p-4 text-center">
+                <p className="text-2xl font-bold text-accent">{stats.interview}</p>
+                <p className="text-sm text-muted-foreground">Interviews</p>
+              </GlassCard>
+              <GlassCard hover={false} className="p-4 text-center">
+                <p className="text-2xl font-bold text-success">{stats.offered}</p>
+                <p className="text-sm text-muted-foreground">Offers</p>
+              </GlassCard>
+            </>
+          )}
         </motion.div>
 
         {/* Search & Filters */}
@@ -159,7 +168,11 @@ export default function Applications() {
         {/* Applications List */}
         <StaggerContainer className="space-y-4">
           {isLoading ? (
-            <GlassCard className="p-6">Loading applications…</GlassCard>
+            <div className="grid gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <CardSkeleton key={i} />
+              ))}
+            </div>
           ) : null}
           {isError ? (
             <GlassCard className="p-6">
@@ -204,9 +217,11 @@ function ApplicationCard({ application }: { application: Application }) {
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Job Info */}
             <div className="flex items-start gap-4 flex-1">
-              <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
-                {job?.logo || "🏢"}
-              </div>
+              <CompanyLogo
+                logo={job?.logo}
+                alt={job?.company ? `${job.company} logo` : "Company logo"}
+                className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>

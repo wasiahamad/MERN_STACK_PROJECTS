@@ -12,6 +12,7 @@ import { HoverCard, StaggerContainer, StaggerItem } from "@/components/ui/animat
 import { usePublicJobs } from "@/lib/apiHooks";
 import type { Job } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 const Jobs = () => {
   const navigate = useNavigate();
@@ -182,9 +183,11 @@ const Jobs = () => {
                     >
                       <div className="flex flex-col md:flex-row md:items-start gap-4">
                         {/* Logo */}
-                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-2xl shrink-0">
-                          {job.logo || "🏢"}
-                        </div>
+                        <CompanyLogo
+                          logo={job.logo}
+                          alt={job.company ? `${job.company} logo` : "Company logo"}
+                          className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-2xl shrink-0"
+                        />
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">

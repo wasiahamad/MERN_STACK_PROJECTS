@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Shield,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -21,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import type { Candidate } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
 import { useRecruiterCandidates, useRecruiterStats, useUpdateRecruiterCandidateStatus } from "@/lib/apiHooks";
@@ -130,9 +130,14 @@ export default function Candidates() {
           className="grid grid-cols-2 md:grid-cols-5 gap-4"
         >
           {statsLoading ? (
-            <div className="col-span-full flex items-center justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <GlassCard key={i} hover={false} className="p-3 text-center">
+                  <SkeletonLoader className="h-7 w-10 rounded mx-auto" />
+                  <SkeletonLoader className="h-3 w-14 rounded mx-auto mt-2" />
+                </GlassCard>
+              ))}
+            </>
           ) : (
             [
               { label: "Total", count: stats?.all || 0, color: "bg-muted" },
@@ -183,8 +188,23 @@ export default function Candidates() {
 
         {/* Candidates List */}
         {candidatesLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <GlassCard key={i} className="p-5">
+                <div className="flex items-start gap-4">
+                  <SkeletonLoader className="h-14 w-14 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <SkeletonLoader className="h-4 w-40 rounded" />
+                    <SkeletonLoader className="h-3 w-64 rounded" />
+                    <div className="flex gap-2 pt-2">
+                      <SkeletonLoader className="h-6 w-16 rounded-full" />
+                      <SkeletonLoader className="h-6 w-20 rounded-full" />
+                      <SkeletonLoader className="h-6 w-24 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              </GlassCard>
+            ))}
           </div>
         ) : candidatesIsError ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
