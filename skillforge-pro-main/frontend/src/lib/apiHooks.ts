@@ -5,6 +5,67 @@ import type { RecruiterProfile } from "@/context/AuthContext";
 
 type MeUpdateBody = Partial<Pick<User, "name" | "phone" | "avatar" | "walletAddress" | "headline" | "location" | "about" | "socials" | "settings">>;
 
+export type AssessmentQuestion = {
+  questionId: string;
+  text: string;
+  options: string[];
+  difficulty: "easy" | "medium" | "hard";
+};
+
+export type AssessmentAttempt = {
+  id: string;
+  skillName: string;
+  attemptNumber: number;
+  startedAt: string;
+  totalQuestions: number;
+  provider: string;
+};
+
+export type AssessmentResult = {
+  attemptId: string;
+  skillName: string;
+  attemptCount: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  accuracy: number;
+  status: "verified" | "partially_verified" | "not_verified";
+  violationCount: number;
+  autoSubmitted: boolean;
+};
+
+export function useGenerateAssessment() {
+  return useMutation({
+    mutationFn: (body: { skillName: string }) =>
+      apiFetch<{ attempt: AssessmentAttempt; questions: AssessmentQuestion[] }>("/api/assessments/generate", { method: "POST", body }),
+  });
+}
+
+export function useSubmitAssessment() {
+  return useMutation({
+    mutationFn: (params: {
+      attemptId: string;
+      answers: { questionId: string; selectedIndex: number }[];
+      violationCount: number;
+      autoSubmitted: boolean;
+    }) =>
+      apiFetch<{ result: AssessmentResult }>(`/api/assessments/${params.attemptId}/submit`, {
+        method: "POST",
+        body: {
+          answers: params.answers,
+          violationCount: params.violationCount,
+          autoSubmitted: params.autoSubmitted,
+        },
+      }),
+  });
+}
+
+export function useAssessmentHistory(skillName?: string) {
+  return useQuery({
+    queryKey: ["assessments", "history", { skillName }],
+    queryFn: () => apiFetch<{ items: any[] }>(`/api/assessments/history${toQueryString({ skillName })}`),
+  });
+}
+
 export function usePublicJobs(params: {
   search?: string;
   location?: string;

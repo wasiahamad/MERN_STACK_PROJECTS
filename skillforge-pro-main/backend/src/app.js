@@ -18,6 +18,7 @@ import daoRoutes from "./routes/dao.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
+import assessmentsRoutes from "./routes/assessments.routes.js";
 
 export const app = express();
 
@@ -47,6 +48,7 @@ app.use("/api/dao", daoRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/assessments", assessmentsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

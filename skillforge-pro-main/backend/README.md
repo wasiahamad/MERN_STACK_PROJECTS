@@ -31,6 +31,33 @@ Error:
 { "error": { "code": "...", "message": "..." } }
 ```
 
+## Skill Verification & Assessment
+
+### Endpoints (auth required: candidate + verified email)
+
+- `POST /api/assessments/generate`
+	- Body: `{ "skillName": "React" }`
+	- Returns: `{ attempt, questions[] }`
+	- Notes: questions do not include the correct answer.
+
+- `POST /api/assessments/:attemptId/submit`
+	- Body:
+		- `answers`: array of 10 `{ questionId, selectedIndex }`
+		- `violationCount`: number
+		- `autoSubmitted`: boolean
+	- Returns: `{ result: { accuracy, status, attemptCount, ... } }`
+
+- `GET /api/assessments/history?skillName=React`
+
+### AI configuration
+
+These are optional environment variables:
+
+- `OPENAI_API_KEY` (required to generate questions for any skill)
+- `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
+
+If `OPENAI_API_KEY` is not set, generation only works for skills with a small built-in fallback bank.
+
 ## Testing
 
 Run tests:

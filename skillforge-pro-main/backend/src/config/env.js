@@ -46,4 +46,8 @@ export const env = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_NAME || process.env.CLOUDNARY_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || process.env.CLOUDNARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDNARY_API_SECRET,
+
+  // AI (optional) - used for Skill Verification & Assessment
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_MODEL: process.env.OPENAI_MODEL,
 };

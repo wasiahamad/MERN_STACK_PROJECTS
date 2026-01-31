@@ -986,6 +986,18 @@ export default function Profile() {
                         </div>
                         <Progress value={skill.level} className="h-3" />
                       </div>
+
+                      {!editMode ? (
+                        <Button
+                          variant={skill.verified ? "outline" : "default"}
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => navigate(`/assessment/${encodeURIComponent(skill.name)}`)}
+                        >
+                          {skill.verified ? "Re-test" : "Verify"}
+                        </Button>
+                      ) : null}
+
                       {editMode && (
                         <Button
                           variant="ghost"
