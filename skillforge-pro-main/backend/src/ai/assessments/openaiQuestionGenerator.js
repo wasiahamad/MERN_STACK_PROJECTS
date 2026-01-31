@@ -1,4 +1,5 @@
 import { env } from "../../config/env.js";
+import nodeFetch from "node-fetch";
 
 /**
  * OpenAI-based generator.
@@ -13,6 +14,8 @@ export async function generateWithOpenAI({ skillName, avoidHashes = [] }) {
     err.code = "OPENAI_NOT_CONFIGURED";
     throw err;
   }
+
+  const fetchFn = globalThis.fetch || nodeFetch;
 
   const model = env.OPENAI_MODEL || "gpt-4o-mini";
 
@@ -41,10 +44,10 @@ export async function generateWithOpenAI({ skillName, avoidHashes = [] }) {
     },
   };
 
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+  const resp = await fetchFn("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${String(env.OPENAI_API_KEY).trim()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

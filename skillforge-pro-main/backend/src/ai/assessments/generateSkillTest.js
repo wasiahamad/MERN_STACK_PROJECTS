@@ -85,8 +85,9 @@ export async function generateSkillTest({ skillName, avoidHashes = [] }) {
     // Fall back to bank if available.
     const bank = FALLBACK_QUESTION_BANK[skillKey];
     if (!bank) {
+      const reason = err?.message ? String(err.message).slice(0, 500) : "Unknown";
       const e = new Error(
-        "AI generation unavailable and no fallback questions exist for this skill. Configure OPENAI_API_KEY or add a fallback bank." 
+        `AI generation unavailable and no fallback questions exist for this skill (skillKey: ${skillKey}). Configure OPENAI_API_KEY or add a fallback bank. AI error: ${reason}`
       );
       e.code = "ASSESSMENT_NO_GENERATOR";
       throw e;

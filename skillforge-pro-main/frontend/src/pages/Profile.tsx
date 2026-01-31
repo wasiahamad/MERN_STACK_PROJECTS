@@ -40,16 +40,25 @@ import {
   useAddEducation,
   useDeleteEducation,
   useSavedJobs,
+  useAssessmentHistory,
 } from "@/lib/apiHooks";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Profile() {
   const navigate = useNavigate();
   const { user, refreshMe } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
+  const [historySkillFilter, setHistorySkillFilter] = useState<string>("all");
 
   const savedJobsQuery = useSavedJobs();
   const savedJobs = savedJobsQuery.data?.items ?? [];
@@ -62,6 +71,52 @@ export default function Profile() {
   const deleteExperienceMutation = useDeleteExperience();
   const addEducationMutation = useAddEducation();
   const deleteEducationMutation = useDeleteEducation();
+
+  const assessmentHistoryAllQuery = useAssessmentHistory();
+  const assessmentHistoryQuery = useAssessmentHistory(historySkillFilter === "all" ? undefined : historySkillFilter);
+
+  const assessmentSummaryBySkill = useMemo(() => {
+    const items = assessmentHistoryAllQuery.data?.items || [];
+    const map = new Map<
+      string,
+      {
+        bestAccuracy: number;
+        bestStatus: string;
+        lastAccuracy: number;
+        lastStatus: string;
+        lastTimestamp: string;
+      }
+    >();
+
+    for (const a of items) {
+      const key = a.skillName;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          bestAccuracy: a.accuracy,
+          bestStatus: a.status,
+          lastAccuracy: a.accuracy,
+          lastStatus: a.status,
+          lastTimestamp: a.timestamp,
+        });
+        continue;
+      }
+
+      if (a.accuracy > existing.bestAccuracy) {
+        existing.bestAccuracy = a.accuracy;
+        existing.bestStatus = a.status;
+      }
+
+      // Items come back newest-first, but be safe and compare timestamps.
+      if (new Date(a.timestamp).getTime() > new Date(existing.lastTimestamp).getTime()) {
+        existing.lastAccuracy = a.accuracy;
+        existing.lastStatus = a.status;
+        existing.lastTimestamp = a.timestamp;
+      }
+    }
+
+    return map;
+  }, [assessmentHistoryAllQuery.data?.items]);
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -985,6 +1040,18 @@ export default function Profile() {
                           <span className="text-sm text-muted-foreground">{skill.level}%</span>
                         </div>
                         <Progress value={skill.level} className="h-3" />
+
+                        {!editMode ? (
+                          (() => {
+                            const s = assessmentSummaryBySkill.get(skill.name);
+                            if (!s) return null;
+                            return (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Best: {s.bestAccuracy}% • Last: {s.lastAccuracy}% • {new Date(s.lastTimestamp).toLocaleDateString()}
+                              </div>
+                            );
+                          })()
+                        ) : null}
                       </div>
 
                       {!editMode ? (
@@ -1023,6 +1090,97 @@ export default function Profile() {
                 </div>
               </GlassCard>
             </StaggerItem>
+
+            {!editMode ? (
+              <StaggerItem>
+                <GlassCard className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="font-display text-lg font-semibold">Assessment History</h3>
+                      <p className="text-sm text-muted-foreground">Your last 50 attempts (best effort).</p>
+                    </div>
+
+                    <div className="w-full md:w-[240px]">
+                      <Select value={historySkillFilter} onValueChange={setHistorySkillFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by skill" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All skills</SelectItem>
+                          {(user?.skills || []).map((s) => (
+                            <SelectItem key={s.name} value={s.name}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {assessmentHistoryQuery.isLoading ? (
+                    <div className="space-y-3">
+                      <SkeletonLoader className="h-12" />
+                      <SkeletonLoader className="h-12" />
+                      <SkeletonLoader className="h-12" />
+                    </div>
+                  ) : assessmentHistoryQuery.isError ? (
+                    <div className="text-sm text-destructive">Unable to load history.</div>
+                  ) : (assessmentHistoryQuery.data?.items || []).length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No attempts yet.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(assessmentHistoryQuery.data?.items || []).map((a) => {
+                        const badgeVariant = a.status === "verified" ? "secondary" : "outline";
+                        const badgeClass =
+                          a.status === "verified"
+                            ? "bg-success/10 text-success border-success/20"
+                            : a.status === "partially_verified"
+                              ? "bg-warning/10 text-warning border-warning/20"
+                              : "bg-destructive/10 text-destructive border-destructive/20";
+
+                        return (
+                          <div
+                            key={a.id}
+                            className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-4"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium truncate">{a.skillName}</span>
+                                <Badge variant={badgeVariant} className={badgeClass}>
+                                  {a.status === "verified"
+                                    ? "Verified"
+                                    : a.status === "partially_verified"
+                                      ? "Partially Verified"
+                                      : "Not Verified"}
+                                </Badge>
+                                {a.examStatus === "failed" ? (
+                                  <Badge variant="outline" className="border-destructive/40 text-destructive">
+                                    Auto-failed
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                Attempt #{a.attemptCount} • {a.correctAnswers}/10 correct • {a.accuracy}% • {new Date(a.timestamp).toLocaleString()}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant={a.status === "verified" ? "outline" : "default"}
+                                size="sm"
+                                onClick={() => navigate(`/assessment/${encodeURIComponent(a.skillName)}`)}
+                              >
+                                {a.status === "verified" ? "Re-test" : "Try again"}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </GlassCard>
+              </StaggerItem>
+            ) : null}
           </StaggerContainer>
         )}
       </div>

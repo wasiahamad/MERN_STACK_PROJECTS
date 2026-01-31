@@ -47,7 +47,18 @@ export const generateAssessment = asyncHandler(async (req, res) => {
     .select({ questions: 1 })
     .then((rows) => rows.flatMap((r) => (r.questions || []).map((q) => q.hash)).filter(Boolean));
 
-  const { questions, provider } = await generateSkillTest({ skillName, avoidHashes });
+  let questions;
+  let provider;
+  try {
+    const generated = await generateSkillTest({ skillName, avoidHashes });
+    questions = generated.questions;
+    provider = generated.provider;
+  } catch (err) {
+    if (err && err.code === "ASSESSMENT_NO_GENERATOR") {
+      throw new ApiError(503, "ASSESSMENT_NO_GENERATOR", err.message);
+    }
+    throw err;
+  }
 
   const attempt = await SkillAssessmentAttempt.create({
     userId: req.user._id,

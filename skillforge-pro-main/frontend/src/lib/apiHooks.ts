@@ -33,6 +33,21 @@ export type AssessmentResult = {
   autoSubmitted: boolean;
 };
 
+export type AssessmentHistoryItem = {
+  id: string;
+  skillName: string;
+  attemptCount: number;
+  accuracy: number;
+  status: "verified" | "partially_verified" | "not_verified";
+  correctAnswers: number;
+  startedAt: string;
+  submittedAt: string | null;
+  violationCount: number;
+  autoSubmitted: boolean;
+  examStatus: "in_progress" | "submitted" | "failed";
+  timestamp: string;
+};
+
 export function useGenerateAssessment() {
   return useMutation({
     mutationFn: (body: { skillName: string }) =>
@@ -62,7 +77,7 @@ export function useSubmitAssessment() {
 export function useAssessmentHistory(skillName?: string) {
   return useQuery({
     queryKey: ["assessments", "history", { skillName }],
-    queryFn: () => apiFetch<{ items: any[] }>(`/api/assessments/history${toQueryString({ skillName })}`),
+    queryFn: () => apiFetch<{ items: AssessmentHistoryItem[] }>(`/api/assessments/history${toQueryString({ skillName })}`),
   });
 }
 
