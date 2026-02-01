@@ -108,6 +108,7 @@ export const submitAssessment = asyncHandler(async (req, res) => {
 
   const violationCount = Number.isFinite(Number(req.body?.violationCount)) ? Number(req.body.violationCount) : 0;
   const autoSubmitted = Boolean(req.body?.autoSubmitted);
+  const isFailed = violationCount >= 2 || autoSubmitted;
 
   const questionMap = new Map(attempt.questions.map((q) => [q.questionId, q]));
 
@@ -124,28 +125,28 @@ export const submitAssessment = asyncHandler(async (req, res) => {
     const q = questionMap.get(questionId);
     if (!q) throw new ApiError(400, "BAD_REQUEST", "Unknown questionId in answers");
 
-    if (selectedIndex === q.correctIndex) correct += 1;
+    if (!isFailed && selectedIndex === q.correctIndex) correct += 1;
     return { questionId, selectedIndex };
   });
 
   // Accuracy: (Correct / 10) * 100
-  const accuracy = Math.round((correct / 10) * 100);
-  const verificationStatus = verificationStatusFromAccuracy(accuracy);
+  const accuracy = isFailed ? 0 : Math.round((correct / 10) * 100);
+  const verificationStatus = isFailed ? "not_verified" : verificationStatusFromAccuracy(accuracy);
 
   attempt.answers = normalizedAnswers;
-  attempt.correctCount = correct;
+  attempt.correctCount = isFailed ? 0 : correct;
   attempt.accuracy = accuracy;
   attempt.verificationStatus = verificationStatus;
   attempt.violationCount = Math.max(0, violationCount);
   attempt.autoSubmitted = autoSubmitted;
-  attempt.status = violationCount >= 2 ? "failed" : "submitted";
+  attempt.status = isFailed ? "failed" : "submitted";
   attempt.submittedAt = new Date();
 
   await attempt.save();
 
   // Sync skill verification flag on user profile (true only when verified).
   // Partially/not verified leave the verified flag false.
-  if (verificationStatus === "verified") {
+  if (!isFailed && verificationStatus === "verified") {
     await User.updateOne(
       { _id: req.user._id, "skills.name": attempt.skillName },
       { $set: { "skills.$.verified": true } }
@@ -159,7 +160,7 @@ export const submitAssessment = asyncHandler(async (req, res) => {
         attemptId: String(attempt._id),
         skillName: attempt.skillName,
         attemptCount: attempt.attemptNumber,
-        correctAnswers: correct,
+        correctAnswers: isFailed ? 0 : correct,
         totalQuestions: 10,
         accuracy,
         status: verificationStatus,
@@ -202,12 +203,14 @@ export const listAssessmentHistory = asyncHandler(async (req, res) => {
     res,
     {
       items: items.map((a) => ({
+        // If an attempt is failed/auto-submitted, treat score as 0 and not verified.
+        // This keeps UI consistent even for older records created before this rule.
         id: String(a._id),
         skillName: a.skillName,
         attemptCount: a.attemptNumber,
-        accuracy: a.accuracy,
-        status: a.verificationStatus,
-        correctAnswers: a.correctCount,
+        accuracy: a.status === "failed" || (a.violationCount || 0) >= 2 || a.autoSubmitted ? 0 : a.accuracy,
+        status: a.status === "failed" || (a.violationCount || 0) >= 2 || a.autoSubmitted ? "not_verified" : a.verificationStatus,
+        correctAnswers: a.status === "failed" || (a.violationCount || 0) >= 2 || a.autoSubmitted ? 0 : a.correctCount,
         startedAt: a.startedAt,
         submittedAt: a.submittedAt,
         violationCount: a.violationCount,

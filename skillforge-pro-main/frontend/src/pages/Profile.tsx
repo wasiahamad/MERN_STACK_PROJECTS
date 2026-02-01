@@ -149,7 +149,7 @@ export default function Profile() {
     });
   }, [user]);
 
-  const [newSkill, setNewSkill] = useState({ name: "", level: 80 });
+  const [newSkill, setNewSkill] = useState({ name: "" });
   const [newExp, setNewExp] = useState({
     title: "",
     company: "",
@@ -609,13 +609,24 @@ export default function Profile() {
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-medium">{skill.name}</span>
                           <div className="flex items-center gap-2">
-                            {skill.verified && (
+                            {(assessmentSummaryBySkill.get(skill.name)?.bestStatus === "verified" || skill.verified) && (
                               <CheckCircle className="h-4 w-4 text-success" />
                             )}
-                            <span className="text-xs text-muted-foreground">{skill.level}%</span>
+                            <span className="text-xs text-muted-foreground">
+                              {(assessmentSummaryBySkill.get(skill.name)?.bestStatus === "verified"
+                                ? assessmentSummaryBySkill.get(skill.name)?.bestAccuracy
+                                : assessmentSummaryBySkill.get(skill.name)?.lastAccuracy) ?? 0}%
+                            </span>
                           </div>
                         </div>
-                        <Progress value={skill.level} className="h-2" />
+                        <Progress
+                          value={
+                            (assessmentSummaryBySkill.get(skill.name)?.bestStatus === "verified"
+                              ? assessmentSummaryBySkill.get(skill.name)?.bestAccuracy
+                              : assessmentSummaryBySkill.get(skill.name)?.lastAccuracy) ?? 0
+                          }
+                          className="h-2"
+                        />
                       </div>
                     </div>
                   ))}
@@ -985,20 +996,10 @@ export default function Profile() {
             {editMode && (
               <GlassCard className="p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Add Skill</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2 md:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label>Skill Name</Label>
                     <Input value={newSkill.name} onChange={(e) => setNewSkill((p) => ({ ...p, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Level (0-100)</Label>
-                    <Input
-                      type="number"
-                      value={newSkill.level}
-                      onChange={(e) => setNewSkill((p) => ({ ...p, level: Number(e.target.value) }))}
-                      min={0}
-                      max={100}
-                    />
                   </div>
                 </div>
                 <div className="mt-4 flex justify-end">
@@ -1007,9 +1008,9 @@ export default function Profile() {
                     loading={addSkillMutation.isPending}
                     onClick={async () => {
                       try {
-                        await addSkillMutation.mutateAsync({ name: newSkill.name, level: newSkill.level, verified: false });
+                        await addSkillMutation.mutateAsync({ name: newSkill.name, level: 0, verified: false });
                         await refreshMe();
-                        setNewSkill({ name: "", level: 80 });
+                        setNewSkill({ name: "" });
                         toast({ title: "Added", description: "Skill saved." });
                       } catch (e) {
                         toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
@@ -1025,68 +1026,73 @@ export default function Profile() {
             <StaggerItem>
               <GlassCard className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {user?.skills?.map((skill) => (
-                    <div key={skill.name} className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{skill.name}</span>
-                            {skill.verified && (
-                              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                                Verified
-                              </Badge>
-                            )}
+                  {user?.skills?.map((skill) => {
+                    const s = assessmentSummaryBySkill.get(skill.name);
+                    const aiAccuracy = (s?.bestStatus === "verified" ? s?.bestAccuracy : s?.lastAccuracy) ?? 0;
+                    const isVerified = s?.bestStatus === "verified" || skill.verified;
+
+                    return (
+                      <div key={skill.name} className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{skill.name}</span>
+                              {isVerified && (
+                                <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                                  Verified
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground">{aiAccuracy}%</span>
                           </div>
-                          <span className="text-sm text-muted-foreground">{skill.level}%</span>
+
+                          <Progress value={aiAccuracy} className="h-3" />
+
+                          {!editMode && s ? (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Best: {s.bestAccuracy}% • Last: {s.lastAccuracy}% • {new Date(s.lastTimestamp).toLocaleDateString()}
+                            </div>
+                          ) : null}
                         </div>
-                        <Progress value={skill.level} className="h-3" />
 
                         {!editMode ? (
-                          (() => {
-                            const s = assessmentSummaryBySkill.get(skill.name);
-                            if (!s) return null;
-                            return (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                Best: {s.bestAccuracy}% • Last: {s.lastAccuracy}% • {new Date(s.lastTimestamp).toLocaleDateString()}
-                              </div>
-                            );
-                          })()
+                          <Button
+                            variant={isVerified ? "outline" : "default"}
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => navigate(`/assessment/${encodeURIComponent(skill.name)}`)}
+                          >
+                            {isVerified ? "Re-test" : "Verify"}
+                          </Button>
                         ) : null}
+
+                        {editMode && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            disabled={deleteSkillMutation.isPending}
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              try {
+                                await deleteSkillMutation.mutateAsync(skill.name);
+                                await refreshMe();
+                                toast({ title: "Deleted", description: "Skill deleted." });
+                              } catch (err) {
+                                toast({
+                                  title: "Failed",
+                                  description: err instanceof Error ? err.message : "Error",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-
-                      {!editMode ? (
-                        <Button
-                          variant={skill.verified ? "outline" : "default"}
-                          size="sm"
-                          className="shrink-0"
-                          onClick={() => navigate(`/assessment/${encodeURIComponent(skill.name)}`)}
-                        >
-                          {skill.verified ? "Re-test" : "Verify"}
-                        </Button>
-                      ) : null}
-
-                      {editMode && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          disabled={deleteSkillMutation.isPending}
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            try {
-                              await deleteSkillMutation.mutateAsync(skill.name);
-                              await refreshMe();
-                              toast({ title: "Deleted", description: "Skill deleted." });
-                            } catch (err) {
-                              toast({ title: "Failed", description: err instanceof Error ? err.message : "Error", variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </GlassCard>
             </StaggerItem>

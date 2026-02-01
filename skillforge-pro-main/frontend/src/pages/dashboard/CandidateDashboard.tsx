@@ -21,7 +21,7 @@ import { StaggerContainer, StaggerItem } from "@/components/ui/animated-containe
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { CardSkeleton, SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { useAuth } from "@/context/AuthContext";
-import { useMyApplications, useRecommendedJobs } from "@/lib/apiHooks";
+import { useAssessmentHistory, useMyApplications, useRecommendedJobs } from "@/lib/apiHooks";
 
 const statusConfig = {
   pending: { icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
@@ -36,9 +36,12 @@ export default function CandidateDashboard() {
   const { user } = useAuth();
   const [pageLoading, setPageLoading] = useState(true);
 
+  const normalizeSkillKey = (name: string) => name.trim().toLowerCase();
+
   const applicationsQuery = useMyApplications({ page: 1, pageSize: 4 });
   const interviewsQuery = useMyApplications({ status: "interview", page: 1, pageSize: 1 });
   const recommendedQuery = useRecommendedJobs(3);
+  const assessmentHistoryQuery = useAssessmentHistory();
 
   useEffect(() => {
     const t = setTimeout(() => setPageLoading(false), 650);
@@ -50,7 +53,62 @@ export default function CandidateDashboard() {
     !user ||
     applicationsQuery.isLoading ||
     interviewsQuery.isLoading ||
-    recommendedQuery.isLoading;
+    recommendedQuery.isLoading ||
+    assessmentHistoryQuery.isLoading;
+
+  const assessmentSummaryBySkill = (() => {
+    const items = assessmentHistoryQuery.data?.items || [];
+    const map = new Map<
+      string,
+      {
+        displayName: string;
+        bestAccuracy: number;
+        bestStatus: string;
+        lastAccuracy: number;
+        lastTimestamp: string;
+      }
+    >();
+
+    for (const a of items) {
+      const skillKey = normalizeSkillKey(a.skillName);
+      const existing = map.get(skillKey);
+      if (!existing) {
+        map.set(skillKey, {
+          displayName: a.skillName,
+          bestAccuracy: a.accuracy,
+          bestStatus: a.status,
+          lastAccuracy: a.accuracy,
+          lastTimestamp: a.timestamp,
+        });
+        continue;
+      }
+
+      if (a.accuracy > existing.bestAccuracy) {
+        existing.bestAccuracy = a.accuracy;
+        existing.bestStatus = a.status;
+      }
+
+      if (new Date(a.timestamp).getTime() > new Date(existing.lastTimestamp).getTime()) {
+        existing.lastAccuracy = a.accuracy;
+        existing.lastTimestamp = a.timestamp;
+      }
+    }
+
+    return map;
+  })();
+
+  const verifiedSkillCount = (() => {
+    const items = assessmentHistoryQuery.data?.items || [];
+    const verified = new Set<string>();
+    for (const a of items) {
+      if (a.status === "verified") {
+        verified.add(normalizeSkillKey(a.skillName));
+      }
+    }
+    return verified.size;
+  })();
+
+  const verifiedSkillLabel = `${verifiedSkillCount} verified skill${verifiedSkillCount === 1 ? "" : "s"}`;
 
   const profileCompletion = (() => {
     const checks = {
@@ -244,14 +302,35 @@ export default function CandidateDashboard() {
                     </div>
                     <div className="flex-1">
                       <p className="text-muted-foreground text-sm mb-4">
-                        Your AI-powered skill score based on experience, certifications, and verified skills.
+                        Your AI-powered skill score based on experience, certifications, and {verifiedSkillLabel}.
                       </p>
                       <div className="space-y-2">
                         {user?.skills?.slice(0, 4).map((skill) => (
                           <div key={skill.name} className="flex items-center gap-2">
-                            <span className="text-sm w-24 truncate">{skill.name}</span>
-                            <Progress value={skill.level} className="flex-1 h-2" />
-                            <span className="text-xs text-muted-foreground w-8">{skill.level}%</span>
+                            {(() => {
+                              const skillKey = normalizeSkillKey(skill.name);
+                              const summary = assessmentSummaryBySkill.get(skillKey);
+                              const isVerified = summary?.bestStatus === "verified";
+                              const shownAccuracy = isVerified ? summary?.bestAccuracy ?? 0 : summary?.lastAccuracy ?? 0;
+
+                              return (
+                                <>
+                                  <span className="text-sm w-24 truncate">{skill.name}</span>
+                            <Progress
+                              value={shownAccuracy}
+                              className="flex-1 h-2"
+                            />
+                            <span className="text-xs text-muted-foreground w-8">
+                              {shownAccuracy}%
+                            </span>
+                                  {isVerified ? (
+                                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                                      Verified
+                                    </Badge>
+                                  ) : null}
+                                </>
+                              );
+                            })()}
                           </div>
                         ))}
                       </div>
