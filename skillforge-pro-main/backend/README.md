@@ -31,7 +31,7 @@ Error:
 { "error": { "code": "...", "message": "..." } }
 ```
 
-## Skill Verification & Assessment
+## Skill Verification & Assessment 
 
 ### Endpoints (auth required: candidate + verified email)
 
@@ -53,10 +53,12 @@ Error:
 
 These are optional environment variables:
 
-- `OPENAI_API_KEY` (required to generate questions for any skill)
-- `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
+- `OPENROUTER_API_KEY` (required to generate questions for any skill)
+- `OPENROUTER_MODEL` (optional, defaults to `openrouter/auto`)
+- `OPENROUTER_BASE_URL` (optional, defaults to `https://openrouter.ai/api/v1`)
+- `OPENROUTER_HTTP_REFERER` / `OPENROUTER_APP_TITLE` (optional, recommended)
 
-If `OPENAI_API_KEY` is not set, generation only works for skills with a small built-in fallback bank.
+If `OPENROUTER_API_KEY` is not set, generation only works for skills with a small built-in fallback bank.
 
 ## Testing
 

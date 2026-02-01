@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { generateWithOpenAI } from "./openaiQuestionGenerator.js";
+import { generateWithOpenRouter } from "./openrouterQuestionGenerator.js";
 import { FALLBACK_QUESTION_BANK, normalizeSkillName } from "./fallbackQuestionBank.js";
 
 function hashText(text) {
@@ -76,18 +76,18 @@ export async function generateSkillTest({ skillName, avoidHashes = [] }) {
 
   // Prefer AI
   try {
-    const raw = await generateWithOpenAI({ skillName, avoidHashes });
+    const raw = await generateWithOpenRouter({ skillName, avoidHashes });
     const normalized = validateAndNormalize({ skillName, raw });
     // Add hashes to used to help callers (optional).
     normalized.forEach((q) => used.add(q.hash));
-    return { questions: normalized, provider: "openai" };
+    return { questions: normalized, provider: "openrouter" };
   } catch (err) {
     // Fall back to bank if available.
     const bank = FALLBACK_QUESTION_BANK[skillKey];
     if (!bank) {
       const reason = err?.message ? String(err.message).slice(0, 500) : "Unknown";
       const e = new Error(
-        `AI generation unavailable and no fallback questions exist for this skill (skillKey: ${skillKey}). Configure OPENAI_API_KEY or add a fallback bank. AI error: ${reason}`
+        `AI generation unavailable and no fallback questions exist for this skill (skillKey: ${skillKey}). Configure OPENROUTER_API_KEY or add a fallback bank. AI error: ${reason}`
       );
       e.code = "ASSESSMENT_NO_GENERATOR";
       throw e;
