@@ -1,6 +1,7 @@
 import express from "express";
 
 import { listPublicJobs, getPublicJob, listRecommendedJobs, toggleSaveJob } from "../controllers/jobs.controller.js";
+import { listMatchedJobs } from "../controllers/matchedJobs.controller.js";
 import { requireAuth, requireRole, requireVerifiedEmail } from "../middlewares/auth.js";
 import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { applyToJob } from "../controllers/applications.controller.js";
@@ -17,6 +18,15 @@ router.get(
   requireVerifiedEmail,
   requireRole("candidate"),
   listRecommendedJobs
+);
+
+// Candidate matched jobs (verified skills) (must be before /:id)
+router.get(
+  "/matched",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  listMatchedJobs
 );
 router.get("/:id", optionalAuth, getPublicJob);
 

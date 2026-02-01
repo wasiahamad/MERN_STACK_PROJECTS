@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { Job } from "../models/Job.js";
 import { User } from "../models/User.js";
 import { Application } from "../models/Application.js";
+import { computeSkillMatch, getVerifiedSkillKeysForCandidate } from "../utils/skillMatching.js";
 
 function asStringArray(v) {
   if (!v) return [];
@@ -24,9 +25,9 @@ function asNumber(v) {
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 function formatSalary(job) {
-  if (typeof job.salaryMin === "number" && typeof job.salaryMax === "number") {
-    return `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}`;
-  }
+  const min = asNumber(job.salaryMin);
+  const max = asNumber(job.salaryMax);
+  if (min !== null && max !== null) return `₹${inr.format(min)} - ₹${inr.format(max)}`;
   return "";
 }
 
@@ -155,7 +156,20 @@ export const getPublicJob = asyncHandler(async (req, res) => {
     ? await Job.countDocuments({ status: "active", companyName: job.companyName })
     : null;
 
-  return ok(res, { job: mapJobDetail(job, { applicants, views: job.views, openPositions: openPositions ?? undefined }) }, "Job");
+  const mapped = mapJobDetail(job, { applicants, views: job.views, openPositions: openPositions ?? undefined });
+
+  // If a candidate is authenticated, attach matchScore based on VERIFIED skills.
+  if (req.user?.role === "candidate") {
+    const verifiedSkillKeys = await getVerifiedSkillKeysForCandidate({
+      userId: req.user._id,
+      legacySkills: req.user.skills,
+    });
+
+    const match = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys });
+    mapped.matchScore = match.matchScore;
+  }
+
+  return ok(res, { job: mapped }, "Job");
 });
 
 export const listRecommendedJobs = asyncHandler(async (req, res) => {

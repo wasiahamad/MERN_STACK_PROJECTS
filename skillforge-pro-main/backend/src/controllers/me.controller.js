@@ -74,6 +74,12 @@ function mapUser(user) {
 
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
+function asNumber(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapSavedJob(job) {
   return {
     id: String(job._id),
@@ -82,7 +88,10 @@ function mapSavedJob(job) {
     logo: job.companyLogo || "",
     location: job.location,
     type: job.type,
-    salary: job.salaryMin != null && job.salaryMax != null ? `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}` : "",
+    salary:
+      asNumber(job.salaryMin) != null && asNumber(job.salaryMax) != null
+        ? `₹${inr.format(asNumber(job.salaryMin))} - ₹${inr.format(asNumber(job.salaryMax))}`
+        : "",
     posted: job.createdAt,
     description: job.description,
     requirements: Array.isArray(job.requirements) ? job.requirements : [],

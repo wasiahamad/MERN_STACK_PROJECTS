@@ -21,7 +21,7 @@ import { StaggerContainer, StaggerItem } from "@/components/ui/animated-containe
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { CardSkeleton, SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { useAuth } from "@/context/AuthContext";
-import { useAssessmentHistory, useMyApplications, useRecommendedJobs } from "@/lib/apiHooks";
+import { useAssessmentHistory, useMatchedJobs, useMyApplications, useRecommendedJobs } from "@/lib/apiHooks";
 
 const statusConfig = {
   pending: { icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
@@ -41,6 +41,7 @@ export default function CandidateDashboard() {
   const applicationsQuery = useMyApplications({ page: 1, pageSize: 4 });
   const interviewsQuery = useMyApplications({ status: "interview", page: 1, pageSize: 1 });
   const recommendedQuery = useRecommendedJobs(3);
+  const matchedJobsQuery = useMatchedJobs({ minScore: 60, limit: 3, page: 1, pageSize: 3 });
   const assessmentHistoryQuery = useAssessmentHistory();
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function CandidateDashboard() {
     applicationsQuery.isLoading ||
     interviewsQuery.isLoading ||
     recommendedQuery.isLoading ||
+    matchedJobsQuery.isLoading ||
     assessmentHistoryQuery.isLoading;
 
   const assessmentSummaryBySkill = (() => {
@@ -469,7 +471,56 @@ export default function CandidateDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.48 }}
+        >
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display text-lg font-semibold">Matched Jobs</h3>
+              <Link to="/dashboard/matched-jobs" className="text-primary text-sm hover:underline">
+                View All
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+              ) : matchedJobsQuery.data?.items?.length ? (
+                matchedJobsQuery.data.items.map((job) => (
+                  <Link
+                    key={job.id}
+                    to={`/jobs/${job.id}`}
+                    className="p-4 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <CompanyLogo
+                        logo={job.logo}
+                        alt={job.company ? `${job.company} logo` : "Company logo"}
+                        className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm truncate">{job.title}</h4>
+                        <p className="text-xs text-muted-foreground truncate">{job.company}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{job.location}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {job.matchScore}% Match
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No matches yet. Verify skills to unlock matches.</p>
+              )}
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* Recommended Jobs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.52 }}
         >
           <GlassCard className="p-6">
             <div className="flex items-center justify-between mb-6">

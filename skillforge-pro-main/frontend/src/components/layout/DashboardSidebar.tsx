@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Briefcase,
+  Sparkles,
   User,
   FileText,
   Award,
@@ -25,6 +26,7 @@ interface DashboardSidebarProps {
 
 const candidateNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Sparkles, label: "Matched Jobs", path: "/dashboard/matched-jobs" },
   { icon: Briefcase, label: "Browse Jobs", path: "/jobs" },
   { icon: FileText, label: "Applications", path: "/applications" },
   { icon: User, label: "My Profile", path: "/profile" },

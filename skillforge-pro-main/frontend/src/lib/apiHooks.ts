@@ -5,6 +5,12 @@ import type { RecruiterProfile } from "@/context/AuthContext";
 
 type MeUpdateBody = Partial<Pick<User, "name" | "phone" | "avatar" | "walletAddress" | "headline" | "location" | "about" | "socials" | "settings">>;
 
+export type MatchedJob = Job & {
+  matchScore: number;
+  matchedSkills?: string[];
+  missingSkills?: string[];
+};
+
 export type AssessmentQuestion = {
   questionId: string;
   text: string;
@@ -74,9 +80,10 @@ export function useSubmitAssessment() {
   });
 }
 
-export function useAssessmentHistory(skillName?: string) {
+export function useAssessmentHistory(skillName?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["assessments", "history", { skillName }],
+    enabled: options?.enabled ?? true,
     queryFn: () => apiFetch<{ items: AssessmentHistoryItem[] }>(`/api/assessments/history${toQueryString({ skillName })}`),
   });
 }
@@ -111,6 +118,16 @@ export function useRecommendedJobs(limit = 3) {
   return useQuery({
     queryKey: ["jobs", "recommended", limit],
     queryFn: () => apiFetch<{ items: Job[] }>(`/api/jobs/recommended${toQueryString({ limit })}`),
+  });
+}
+
+export function useMatchedJobs(params: { minScore?: number; page?: number; pageSize?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ["jobs", "matched", params],
+    queryFn: () =>
+      apiFetch<{ items: MatchedJob[]; total: number; page: number; pageSize: number; minScore: number }>(
+        `/api/jobs/matched${toQueryString(params)}`
+      ),
   });
 }
 

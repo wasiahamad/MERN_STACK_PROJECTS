@@ -20,6 +20,7 @@ import Help from "./pages/Help";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import CandidateDashboard from "./pages/dashboard/CandidateDashboard";
+import MatchedJobs from "./pages/dashboard/MatchedJobs";
 import RecruiterDashboard from "./pages/dashboard/RecruiterDashboard";
 import Applications from "./pages/Applications";
 import Profile from "./pages/Profile";
@@ -63,6 +64,11 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute requiredRole="candidate">
                 <CandidateDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/matched-jobs" element={
+              <ProtectedRoute requiredRole="candidate">
+                <MatchedJobs />
               </ProtectedRoute>
             } />
             <Route path="/applications" element={

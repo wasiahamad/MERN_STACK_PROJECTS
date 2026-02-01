@@ -29,7 +29,7 @@ import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { useApplyToJob, usePublicJob, useToggleSaveJob } from "@/lib/apiHooks";
+import { useApplyToJob, useAssessmentHistory, usePublicJob, useToggleSaveJob } from "@/lib/apiHooks";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
 export default function JobDetail() {
@@ -44,6 +44,55 @@ export default function JobDetail() {
   const job = data?.job;
   const applyMutation = useApplyToJob(id);
   const toggleSaveMutation = useToggleSaveJob();
+  const assessmentHistoryQuery = useAssessmentHistory(undefined, { enabled: isAuthenticated && isCandidate });
+
+  const normalizeSkillKey = (name: string) => {
+    const raw = String(name || "").trim().toLowerCase();
+    if (!raw) return "";
+
+    const compact = raw.replace(/[._-]/g, " ").replace(/\s+/g, " ").trim();
+    const aliasKey = compact.replace(/\s+/g, "");
+
+    const aliases: Record<string, string> = {
+      js: "javascript",
+      javascript: "javascript",
+      ts: "typescript",
+      typescript: "typescript",
+      reactjs: "react",
+      react: "react",
+      nodejs: "node",
+      node: "node",
+      expressjs: "express",
+      express: "express",
+      mongo: "mongodb",
+      mongodb: "mongodb",
+      mern: "mern stack",
+      mernstack: "mern stack",
+      "mern stack": "mern stack",
+    };
+
+    return aliases[compact] || aliases[aliasKey] || compact;
+  };
+
+  const verifiedSkillKeys = useMemo(() => {
+    const keys = new Set<string>();
+
+    // Legacy verified skills on the user profile.
+    for (const s of user?.skills || []) {
+      if (!s?.verified) continue;
+      const k = normalizeSkillKey(s.name);
+      if (k) keys.add(k);
+    }
+
+    // Assessment-verified skills.
+    for (const a of assessmentHistoryQuery.data?.items || []) {
+      if (a.status !== "verified") continue;
+      const k = normalizeSkillKey(a.skillName);
+      if (k) keys.add(k);
+    }
+
+    return keys;
+  }, [assessmentHistoryQuery.data?.items, user?.skills]);
 
   useEffect(() => {
     if (!job?.id) return;
@@ -147,18 +196,23 @@ export default function JobDetail() {
     if (!job || !isAuthenticated || !user) {
       return { skillMatch: 0, certMatch: false, scoreMatch: false, matchScore: 0 };
     }
-    const skillCount = job.skills?.length || 0;
-    const overlap = skillCount
-      ? job.skills.filter((s) => user.skills?.some((us) => us.name === s)).length
-      : 0;
-    const skillMatch = skillCount ? Math.round((overlap / skillCount) * 100) : 0;
+
+    const requiredSkills = Array.isArray(job.skills) ? job.skills : [];
+    const requiredKeys = requiredSkills.map((s) => normalizeSkillKey(s)).filter(Boolean);
+    const overlap = requiredKeys.length ? requiredKeys.filter((k) => verifiedSkillKeys.has(k)).length : 0;
+    const computedSkillMatch = requiredKeys.length ? Math.round((overlap / requiredKeys.length) * 100) : 0;
+
     const certMatch =
       (job.requiredCertificates?.length || 0) === 0 ||
       job.requiredCertificates.every((c) => user.certificates?.some((uc) => uc.name === c));
     const scoreMatch = (user.aiScore || 0) >= (job.minAiScore || 0);
-    const matchScore = typeof job.matchScore === "number" ? job.matchScore : skillMatch;
+
+    // Backend now provides matchScore for authenticated candidates based on VERIFIED skills.
+    const matchScore = typeof job.matchScore === "number" ? job.matchScore : computedSkillMatch;
+    const skillMatch = matchScore;
+
     return { skillMatch, certMatch, scoreMatch, matchScore };
-  }, [isAuthenticated, job, user]);
+  }, [isAuthenticated, job, user, verifiedSkillKeys]);
 
   if (isLoading) {
     return (

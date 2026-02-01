@@ -3,8 +3,15 @@ import { created, ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
+import { computeSkillMatch, getVerifiedSkillKeysForCandidate } from "../utils/skillMatching.js";
 
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+function asNumber(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 function mapApplication(app, job) {
   return {
@@ -25,8 +32,8 @@ function mapApplication(app, job) {
           location: job.location,
           type: job.type,
           salary:
-            job.salaryMin != null && job.salaryMax != null
-              ? `₹${inr.format(job.salaryMin)} - ₹${inr.format(job.salaryMax)}`
+            asNumber(job.salaryMin) != null && asNumber(job.salaryMax) != null
+              ? `₹${inr.format(asNumber(job.salaryMin))} - ₹${inr.format(asNumber(job.salaryMax))}`
               : "",
           posted: job.createdAt,
           description: job.description,
@@ -49,13 +56,27 @@ export const applyToJob = asyncHandler(async (req, res) => {
   const job = await Job.findById(id);
   if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
 
+  const verifiedSkillKeys = await getVerifiedSkillKeysForCandidate({
+    userId: req.user._id,
+    legacySkills: req.user.skills,
+  });
+
+  if (verifiedSkillKeys.size === 0) {
+    throw new ApiError(400, "SKILLS_NOT_VERIFIED", "Please verify your skills before applying");
+  }
+
+  const { matchScore } = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys });
+  if (matchScore < 60) {
+    throw new ApiError(400, "LOW_MATCH", "Your verified skills match is below 60% for this job");
+  }
+
   try {
     const application = await Application.create({
       jobId: job._id,
       candidateId: req.user._id,
       recruiterId: job.recruiterId,
       coverLetter: typeof coverLetter === "string" ? coverLetter : "",
-      matchScore: 0,
+      matchScore,
       aiVerified: false,
       nftVerified: false,
     });

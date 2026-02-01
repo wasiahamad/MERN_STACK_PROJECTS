@@ -47,7 +47,7 @@ export const env = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || process.env.CLOUDNARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDNARY_API_SECRET,
 
-  // AI (optional) - used for Skill Verification & Assessment (OpenRouter)
+  // AI - used for Skill Verification & Assessment (OpenRouter)
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
   OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL,
