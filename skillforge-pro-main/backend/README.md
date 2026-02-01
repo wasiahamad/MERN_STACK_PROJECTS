@@ -56,6 +56,7 @@ These are optional environment variables:
 - `OPENROUTER_API_KEY` (required to generate questions for any skill)
 - `OPENROUTER_MODEL` (optional, defaults to `openrouter/auto`)
 - `OPENROUTER_BASE_URL` (optional, defaults to `https://openrouter.ai/api/v1`)
+- `OPENROUTER_MAX_TOKENS` (optional, defaults to `1200`)
 - `OPENROUTER_HTTP_REFERER` / `OPENROUTER_APP_TITLE` (optional, recommended)
 
 If `OPENROUTER_API_KEY` is not set, generation only works for skills with a small built-in fallback bank.

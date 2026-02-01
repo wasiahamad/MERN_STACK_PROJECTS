@@ -62,6 +62,8 @@ export async function generateWithOpenRouter({ skillName, avoidHashes = [] }) {
     body: JSON.stringify({
       model,
       temperature: 0.7,
+      // Keep costs predictable and avoid OpenRouter defaulting to a very high max.
+      max_tokens: Number(env.OPENROUTER_MAX_TOKENS || 1200),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -71,8 +73,18 @@ export async function generateWithOpenRouter({ skillName, avoidHashes = [] }) {
   });
 
   if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    const err = new Error(`OpenRouter request failed (${resp.status}): ${text}`);
+    let message = "";
+    try {
+      const data = await resp.json();
+      message = String(data?.error?.message || "").trim();
+    } catch {
+      message = String(await resp.text().catch(() => "")).trim();
+    }
+
+    // Avoid leaking provider/user metadata to clients.
+    if (message.length > 600) message = message.slice(0, 600) + "…";
+
+    const err = new Error(`OpenRouter request failed (${resp.status}): ${message || "Unknown error"}`);
     err.code = "OPENROUTER_REQUEST_FAILED";
     throw err;
   }

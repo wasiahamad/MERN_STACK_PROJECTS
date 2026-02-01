@@ -732,6 +732,90 @@ export const FALLBACK_QUESTION_BANK = {
       },
     ],
   },
+
+  "mern stack": {
+    easy: [
+      {
+        text: "What does MERN stand for?",
+        options: [
+          "MongoDB, Express, React, Node.js",
+          "MySQL, Ember, Ruby, Next.js",
+          "MongoDB, Electron, Redis, Nginx",
+          "Mongoose, Express, Relay, Node",
+        ],
+        correctIndex: 0,
+      },
+      {
+        text: "Which part of MERN typically runs in the browser?",
+        options: ["Node.js", "Express", "React", "MongoDB"],
+        correctIndex: 2,
+      },
+      {
+        text: "Which component is the database in MERN?",
+        options: ["React", "Express", "MongoDB", "Node.js"],
+        correctIndex: 2,
+      },
+      {
+        text: "In a MERN app, which is commonly used to build REST APIs?",
+        options: ["React", "Express", "MongoDB", "CSS"],
+        correctIndex: 1,
+      },
+      {
+        text: "Which protocol is most commonly used between React frontend and Express backend?",
+        options: ["FTP", "HTTP", "SMTP", "SSH"],
+        correctIndex: 1,
+      },
+    ],
+    medium: [
+      {
+        text: "What is a common pattern to avoid CORS issues in development for a MERN app?",
+        options: [
+          "Disable HTTP",
+          "Use a frontend dev-server proxy to the backend",
+          "Store tokens in query params",
+          "Use only WebSockets",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Which is a typical authentication approach for MERN APIs?",
+        options: ["JWT in Authorization header", "Cookies only without HTTPS", "FTP credentials", "No auth needed"],
+        correctIndex: 0,
+      },
+      {
+        text: "What does MVC commonly refer to in an Express backend structure?",
+        options: [
+          "Model-View-Controller",
+          "Mongo-Version-Config",
+          "Module-Variable-Class",
+          "Main-View-Component",
+        ],
+        correctIndex: 0,
+      },
+    ],
+    hard: [
+      {
+        text: "Why should you avoid doing heavy CPU work inside an Express request handler?",
+        options: [
+          "It improves throughput",
+          "It blocks the Node.js event loop and delays other requests",
+          "It reduces memory",
+          "It only affects MongoDB",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "In MongoDB, why might you prefer indexes for frequently queried fields?",
+        options: [
+          "To make documents bigger",
+          "To speed up queries and reduce collection scans",
+          "To enforce JSX rules",
+          "To increase API latency",
+        ],
+        correctIndex: 1,
+      },
+    ],
+  },
 };
 
 export function normalizeSkillName(skillName) {
@@ -769,6 +853,10 @@ export function normalizeSkillName(skillName) {
 
     sql: "sql",
     java: "java",
+
+    mern: "mern stack",
+    mernstack: "mern stack",
+    "mern stack": "mern stack",
   };
 
   return alias[cleaned] || alias[compact] || cleaned;
