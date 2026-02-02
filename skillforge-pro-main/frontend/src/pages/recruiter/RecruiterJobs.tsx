@@ -45,6 +45,7 @@ type RecruiterJob = {
   skills?: string[];
   status: "active" | "paused" | "closed";
   applicantsCount?: number;
+  views?: number;
   companyName?: string;
   companyLogo?: string;
   createdAt?: string;
@@ -276,7 +277,7 @@ function JobCard({ job, onDelete }: { job: RecruiterJob; onDelete: () => void })
           </span>
           <span className="flex items-center gap-1">
             <Eye className="h-4 w-4" />
-            — views
+            {typeof job.views === "number" ? job.views : 0} views
           </span>
         </div>
 
