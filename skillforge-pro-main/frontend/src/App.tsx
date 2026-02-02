@@ -30,6 +30,7 @@ import Settings from "./pages/Settings";
 import SkillAssessment from "./pages/SkillAssessment";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import CreateJob from "./pages/recruiter/CreateJob";
+import RecruiterJobDetail from "./pages/recruiter/RecruiterJobDetail";
 import Candidates from "./pages/recruiter/Candidates";
 import CompanyProfile from "./pages/recruiter/CompanyProfile";
 import NotFound from "./pages/NotFound";
@@ -119,6 +120,11 @@ const App = () => (
             <Route path="/recruiter/jobs/new" element={
               <ProtectedRoute requiredRole="recruiter">
                 <CreateJob />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/jobs/:id" element={
+              <ProtectedRoute requiredRole="recruiter">
+                <RecruiterJobDetail />
               </ProtectedRoute>
             } />
             <Route path="/recruiter/candidates" element={

@@ -21,9 +21,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import { SkeletonLoader } from "@/components/ui/skeleton-loader";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { Candidate } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
-import { useRecruiterCandidates, useRecruiterStats, useUpdateRecruiterCandidateStatus } from "@/lib/apiHooks";
+import {
+  useRecruiterCandidates,
+  useRecruiterMessageCandidate,
+  useRecruiterScheduleInterview,
+  useRecruiterStats,
+  useUpdateRecruiterCandidateStatus,
+} from "@/lib/apiHooks";
 
 const statusOptions = [
   { id: "all", label: "All Candidates" },
@@ -66,6 +75,8 @@ export default function Candidates() {
     limit: 100,
   });
   const updateStatus = useUpdateRecruiterCandidateStatus();
+  const messageCandidate = useRecruiterMessageCandidate();
+  const scheduleInterview = useRecruiterScheduleInterview();
 
   const stats = statsData?.pipeline;
 
@@ -228,7 +239,188 @@ export default function Candidates() {
           </motion.div>
         )}
       </div>
+
+      <CandidateDetailsSheet
+        candidate={selectedCandidate}
+        open={!!selectedCandidate}
+        onOpenChange={(v) => {
+          if (!v) setSelectedCandidate(null);
+        }}
+        onSendMessage={async (applicationId, msg) => {
+          await messageCandidate.mutateAsync({ applicationId, message: msg });
+        }}
+        onSchedule={async (applicationId, scheduledFor, note) => {
+          await scheduleInterview.mutateAsync({ applicationId, scheduledFor, note });
+        }}
+      />
     </DashboardLayout>
+  );
+}
+
+function CandidateDetailsSheet({
+  candidate,
+  open,
+  onOpenChange,
+  onSendMessage,
+  onSchedule,
+}: {
+  candidate: RecruiterCandidate | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSendMessage: (applicationId: string, message: string) => Promise<void>;
+  onSchedule: (applicationId: string, scheduledFor: string, note?: string) => Promise<void>;
+}) {
+  const [message, setMessage] = useState("");
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const canAct = !!candidate?.applicationId;
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) {
+          setMessage("");
+          setScheduledFor("");
+          setNote("");
+        }
+      }}
+    >
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Candidate details</SheetTitle>
+          <SheetDescription>View profile summary, match breakdown, message and schedule interview.</SheetDescription>
+        </SheetHeader>
+
+        {!candidate ? (
+          <div className="mt-6 text-muted-foreground">No candidate selected.</div>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <div className="flex items-start gap-3">
+              <div className="h-14 w-14 rounded-xl bg-muted overflow-hidden flex items-center justify-center text-2xl shrink-0">
+                {candidate.avatar && (candidate.avatar.startsWith("http") || candidate.avatar.startsWith("/uploads")) ? (
+                  <img src={candidate.avatar} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  (candidate.avatar || candidate.name?.slice(0, 1).toUpperCase() || "👤")
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-display text-lg font-semibold truncate">{candidate.name}</p>
+                <p className="text-sm text-muted-foreground truncate">{candidate.title}</p>
+                {candidate.jobTitle ? <p className="text-xs text-muted-foreground mt-1">Applied for: {candidate.jobTitle}</p> : null}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Badge className="gradient-primary text-primary-foreground">{candidate.matchScore ?? 0}% Match</Badge>
+                  <Badge variant="outline">AI Score: {candidate.aiScore ?? 0}</Badge>
+                  <Badge variant="outline" className="capitalize">{candidate.status}</Badge>
+                </div>
+              </div>
+            </div>
+
+            <GlassCard hover={false} className="p-4">
+              <p className="text-sm font-medium mb-2">Match breakdown (verified skills)</p>
+              <p className="text-xs text-muted-foreground">Matching uses candidate VERIFIED skills only. If a skill is listed but not verified, it won’t count.</p>
+              <div className="mt-3 space-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Matched</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {(candidate.matchedSkills || []).length ? (
+                      (candidate.matchedSkills || []).map((s) => (
+                        <Badge key={s} className="bg-success/10 text-success">{s}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Missing</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {(candidate.missingSkills || []).length ? (
+                      (candidate.missingSkills || []).map((s) => (
+                        <Badge key={s} className="bg-destructive/10 text-destructive">{s}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+
+            <GlassCard hover={false} className="p-4">
+              <p className="text-sm font-medium mb-2">Skills</p>
+              <div className="flex flex-wrap gap-2">
+                {(candidate.skills || []).map((s) => (
+                  <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                ))}
+              </div>
+            </GlassCard>
+
+            <GlassCard hover={false} className="p-4 space-y-3">
+              <p className="text-sm font-medium">Message candidate</p>
+              <div className="space-y-1">
+                <Label htmlFor="msg">Message</Label>
+                <Textarea id="msg" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Write a message..." />
+              </div>
+              <Button
+                disabled={!canAct || busy || message.trim().length < 2}
+                onClick={async () => {
+                  if (!candidate.applicationId) return;
+                  setBusy(true);
+                  try {
+                    await onSendMessage(candidate.applicationId, message.trim());
+                    toast({ title: "Sent", description: "Message sent to candidate (notification)" });
+                    setMessage("");
+                  } catch (e: any) {
+                    toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to send" });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Mail className="h-4 w-4" />
+                Send
+              </Button>
+            </GlassCard>
+
+            <GlassCard hover={false} className="p-4 space-y-3">
+              <p className="text-sm font-medium">Schedule interview</p>
+              <div className="space-y-1">
+                <Label htmlFor="when">Date & time</Label>
+                <Input id="when" type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="note">Note (optional)</Label>
+                <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Interview link / instructions..." />
+              </div>
+              <Button
+                disabled={!canAct || busy || !scheduledFor}
+                onClick={async () => {
+                  if (!candidate.applicationId) return;
+                  setBusy(true);
+                  try {
+                    await onSchedule(candidate.applicationId, scheduledFor, note.trim() || undefined);
+                    toast({ title: "Scheduled", description: "Interview scheduled (notification + status updated)" });
+                    setScheduledFor("");
+                    setNote("");
+                  } catch (e: any) {
+                    toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to schedule" });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Calendar className="h-4 w-4" />
+                Schedule
+              </Button>
+            </GlassCard>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -367,11 +559,11 @@ function CandidateCard({
               <Eye className="h-4 w-4" />
               View Profile
             </GradientButton>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={onSelect}>
               <Mail className="h-4 w-4" />
               Message
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={onSelect}>
               <Calendar className="h-4 w-4" />
               Schedule
             </Button>

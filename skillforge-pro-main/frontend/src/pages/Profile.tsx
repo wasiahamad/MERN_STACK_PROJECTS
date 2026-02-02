@@ -41,10 +41,12 @@ import {
   useDeleteEducation,
   useSavedJobs,
   useAssessmentHistory,
+  useRefreshMyAiScore,
 } from "@/lib/apiHooks";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -53,9 +55,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+function Row({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold">{value ?? 0}</span>
+    </div>
+  );
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const { user, refreshMe } = useAuth();
+  const didRefreshAiScore = useRef(false);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
   const [historySkillFilter, setHistorySkillFilter] = useState<string>("all");
@@ -71,6 +83,22 @@ export default function Profile() {
   const deleteExperienceMutation = useDeleteExperience();
   const addEducationMutation = useAddEducation();
   const deleteEducationMutation = useDeleteEducation();
+
+  const refreshAiScoreMutation = useRefreshMyAiScore();
+  const [aiBreakdown, setAiBreakdown] = useState<any>(null);
+  const [aiBreakdownOpen, setAiBreakdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.role !== "candidate") return;
+    if (didRefreshAiScore.current) return;
+    didRefreshAiScore.current = true;
+    refreshAiScoreMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        setAiBreakdown((data as any)?.breakdown || null);
+        refreshMe();
+      },
+    });
+  }, [user, refreshAiScoreMutation, refreshMe]);
 
   const assessmentHistoryAllQuery = useAssessmentHistory();
   const assessmentHistoryQuery = useAssessmentHistory(historySkillFilter === "all" ? undefined : historySkillFilter);
@@ -449,6 +477,36 @@ export default function Profile() {
                   <div className="text-center p-3 rounded-xl bg-muted/50">
                     <p className="text-2xl font-bold gradient-text">{user?.aiScore}</p>
                     <p className="text-xs text-muted-foreground">AI Score</p>
+                    <button
+                      type="button"
+                      className="mt-2 text-xs text-primary hover:underline"
+                      onClick={() => {
+                        if (!aiBreakdown) {
+                          toast({
+                            title: "AI breakdown",
+                            description: "Refreshing score breakdown...",
+                          });
+                          refreshAiScoreMutation.mutate(undefined, {
+                            onSuccess: async (data) => {
+                              setAiBreakdown((data as any)?.breakdown || null);
+                              await refreshMe();
+                              setAiBreakdownOpen(true);
+                            },
+                            onError: (e: any) => {
+                              toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: e?.message || "Failed to refresh AI score",
+                              });
+                            },
+                          });
+                          return;
+                        }
+                        setAiBreakdownOpen(true);
+                      }}
+                    >
+                      View breakdown
+                    </button>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-muted/50">
                     <p className="text-2xl font-bold text-success">{user?.reputation}</p>
@@ -463,6 +521,65 @@ export default function Profile() {
                     <p className="text-xs text-muted-foreground">Years Exp</p>
                   </div>
                 </div>
+
+                <Sheet open={aiBreakdownOpen} onOpenChange={setAiBreakdownOpen}>
+                  <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+                    <SheetHeader>
+                      <SheetTitle>AI Score Breakdown</SheetTitle>
+                      <SheetDescription>Deterministic scoring based on verified assessments + profile signals.</SheetDescription>
+                    </SheetHeader>
+
+                    <div className="mt-6 space-y-4">
+                      {!aiBreakdown ? (
+                        <p className="text-muted-foreground">No breakdown available yet.</p>
+                      ) : (
+                        <>
+                          <GlassCard hover={false} className="p-4">
+                            <p className="text-sm font-medium">Components</p>
+                            <div className="mt-3 space-y-2 text-sm">
+                              <Row label="Base" value={aiBreakdown.base} />
+                              <Row label="Verified skills + accuracy" value={aiBreakdown.skillComponent} />
+                              <Row label="Partial skills" value={aiBreakdown.partialComponent} />
+                              <Row label="Experience" value={aiBreakdown.experienceComponent} />
+                              <Row label="Certificates" value={aiBreakdown.certificateComponent} />
+                              <Row label="Profile completion" value={aiBreakdown.profileComponent} />
+                            </div>
+                          </GlassCard>
+
+                          <GlassCard hover={false} className="p-4">
+                            <p className="text-sm font-medium">Inputs</p>
+                            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">Verified skills</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.verifiedSkillCount ?? 0}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">Avg best accuracy</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.avgBestAccuracy ?? 0}%</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">Experience (years)</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.yearsExperience ?? 0}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">Verified certs</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.verifiedCertCount ?? 0}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">NFT minted</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.nftMintedCount ?? 0}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/40">
+                                <p className="text-xs text-muted-foreground">Profile completion</p>
+                                <p className="font-semibold">{aiBreakdown.inputs?.profileCompletion ?? 0}%</p>
+                              </div>
+                            </div>
+                          </GlassCard>
+                        </>
+                      )}
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 {/* Social Links */}
                 <div className="flex gap-3 mt-6">

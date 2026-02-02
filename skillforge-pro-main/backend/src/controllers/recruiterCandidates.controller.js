@@ -4,6 +4,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { Application } from "../models/Application.js";
 import { User } from "../models/User.js";
 import { Job } from "../models/Job.js";
+import { Notification } from "../models/Notification.js";
+import { SkillAssessmentAttempt } from "../models/SkillAssessmentAttempt.js";
+import { computeSkillMatch, normalizeSkillKey } from "../utils/skillMatching.js";
 
 function toYyyyMmDd(date) {
   try {
@@ -45,8 +48,14 @@ function mapCandidateFrom(user, application, job) {
     title: user.headline || "",
     location: user.location || "",
     skills,
+    email: user.email,
+    phone: user.phone || "",
+    about: user.about || "",
+    socials: user.socials || undefined,
     aiScore: typeof user.aiScore === "number" ? user.aiScore : 0,
     matchScore: typeof application.matchScore === "number" ? application.matchScore : 0,
+    matchedSkills: [],
+    missingSkills: [],
     experience: Array.isArray(user.experience) && user.experience.length ? `${user.experience.length} roles` : "",
     appliedDate: toYyyyMmDd(application.createdAt),
     status: recruiterStatusFromApplication(application.status),
@@ -87,11 +96,68 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
   const userMap = new Map(candidates.map((u) => [String(u._id), u]));
   const jobMap = new Map(jobs.map((j) => [String(j._id), j]));
 
+  // Precompute verified skill keys per candidate to enable match breakdown.
+  const verifiedKeysByUserId = new Map();
+
+  for (const u of candidates) {
+    const set = new Set();
+
+    // Legacy verified skills
+    if (Array.isArray(u.skills)) {
+      for (const s of u.skills) {
+        if (!s || !s.verified) continue;
+        const k = normalizeSkillKey(s.name);
+        if (k) set.add(k);
+      }
+    }
+
+    verifiedKeysByUserId.set(String(u._id), set);
+  }
+
+  // Assessment-verified skills (batched)
+  if (candidateIds.length) {
+    const rows = await SkillAssessmentAttempt.aggregate([
+      {
+        $match: {
+          userId: { $in: candidateIds },
+          status: "submitted",
+          verificationStatus: "verified",
+        },
+      },
+      { $group: { _id: { userId: "$userId", skillName: "$skillName" } } },
+    ]);
+
+    for (const r of rows) {
+      const uid = String(r?._id?.userId || "");
+      const skillName = r?._id?.skillName;
+      if (!uid || !skillName) continue;
+      const set = verifiedKeysByUserId.get(uid) || new Set();
+      const k = normalizeSkillKey(skillName);
+      if (k) set.add(k);
+      verifiedKeysByUserId.set(uid, set);
+    }
+  }
+
   let items = apps
     .map((a) => {
       const user = userMap.get(String(a.candidateId));
       if (!user) return null;
-      return mapCandidateFrom(user, a, jobMap.get(String(a.jobId)));
+
+      const job = jobMap.get(String(a.jobId));
+      const mapped = mapCandidateFrom(user, a, job);
+
+      // Compute match (using VERIFIED skills) when missing/older applications have no matchScore.
+      const verifiedKeys = verifiedKeysByUserId.get(String(user._id)) || new Set();
+      const computed = job
+        ? computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys: verifiedKeys })
+        : { matchScore: 0, matchedSkills: [], missingSkills: [] };
+
+      const hasStored = typeof a.matchScore === "number" && Number.isFinite(a.matchScore);
+      mapped.matchScore = hasStored ? a.matchScore : computed.matchScore;
+      mapped.matchedSkills = computed.matchedSkills;
+      mapped.missingSkills = computed.missingSkills;
+
+      return mapped;
     })
     .filter(Boolean);
 
@@ -105,6 +171,60 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
   }
 
   return ok(res, { items, total, page: p, pageSize: ps }, "Recruiter candidates");
+});
+
+export const sendRecruiterMessageToCandidate = asyncHandler(async (req, res) => {
+  const { id } = req.params; // applicationId
+  const message = String(req.body?.message || "").trim();
+  if (!message || message.length < 2 || message.length > 2000) {
+    throw new ApiError(400, "VALIDATION", "message must be 2..2000 chars");
+  }
+
+  const app = await Application.findById(id);
+  if (!app) throw new ApiError(404, "APPLICATION_NOT_FOUND", "Application not found");
+  if (String(app.recruiterId) !== String(req.user._id)) throw new ApiError(403, "FORBIDDEN", "Not allowed");
+
+  const job = await Job.findById(app.jobId).select({ title: 1 });
+  await Notification.create({
+    userId: app.candidateId,
+    type: "message",
+    title: "Recruiter message",
+    message: `${job?.title ? `Job: ${job.title}\n` : ""}${message}`,
+    time: new Date().toISOString(),
+    read: false,
+  });
+
+  return ok(res, { ok: true }, "Message sent");
+});
+
+export const scheduleRecruiterInterview = asyncHandler(async (req, res) => {
+  const { id } = req.params; // applicationId
+  const whenRaw = String(req.body?.scheduledFor || "").trim();
+  const note = String(req.body?.note || "").trim();
+  const when = whenRaw ? new Date(whenRaw) : null;
+  if (!when || Number.isNaN(when.getTime())) {
+    throw new ApiError(400, "VALIDATION", "scheduledFor must be a valid date/time");
+  }
+
+  const app = await Application.findById(id);
+  if (!app) throw new ApiError(404, "APPLICATION_NOT_FOUND", "Application not found");
+  if (String(app.recruiterId) !== String(req.user._id)) throw new ApiError(403, "FORBIDDEN", "Not allowed");
+
+  // Optional: move pipeline to interview
+  app.status = "interview";
+  await app.save();
+
+  const job = await Job.findById(app.jobId).select({ title: 1 });
+  await Notification.create({
+    userId: app.candidateId,
+    type: "interview",
+    title: "Interview scheduled",
+    message: `${job?.title ? `Job: ${job.title}\n` : ""}Scheduled for: ${when.toISOString()}${note ? `\n\nNote: ${note}` : ""}`,
+    time: when.toISOString(),
+    read: false,
+  });
+
+  return ok(res, { ok: true, status: recruiterStatusFromApplication(app.status) }, "Interview scheduled");
 });
 
 export const updateRecruiterCandidateStatus = asyncHandler(async (req, res) => {

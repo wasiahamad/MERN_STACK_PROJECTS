@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -173,6 +173,7 @@ export default function RecruiterJobs() {
 }
 
 function JobCard({ job, onDelete }: { job: RecruiterJob; onDelete: () => void }) {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const statusConfig = {
@@ -214,7 +215,10 @@ function JobCard({ job, onDelete }: { job: RecruiterJob; onDelete: () => void })
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-xl shadow-lg z-10">
                 <button
-                  onClick={() => toast({ title: "Coming soon", description: "Edit job will be added next" })}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate(`/recruiter/jobs/${job.id}`);
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
                 >
                   <Edit2 className="h-4 w-4" />
@@ -282,7 +286,7 @@ function JobCard({ job, onDelete }: { job: RecruiterJob; onDelete: () => void })
               View Applicants
             </Button>
           </Link>
-          <Link to={`/jobs/${job.id}`}>
+          <Link to={`/recruiter/jobs/${job.id}`}>
             <Button variant="ghost" size="sm">
               <Eye className="h-4 w-4" />
             </Button>

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Briefcase,
   TrendingUp,
@@ -21,7 +21,7 @@ import { StaggerContainer, StaggerItem } from "@/components/ui/animated-containe
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { CardSkeleton, SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { useAuth } from "@/context/AuthContext";
-import { useAssessmentHistory, useMatchedJobs, useMyApplications, useRecommendedJobs } from "@/lib/apiHooks";
+import { useAssessmentHistory, useMatchedJobs, useMyApplications, useRecommendedJobs, useRefreshMyAiScore } from "@/lib/apiHooks";
 
 const statusConfig = {
   pending: { icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
@@ -33,8 +33,9 @@ const statusConfig = {
 };
 
 export default function CandidateDashboard() {
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const [pageLoading, setPageLoading] = useState(true);
+  const didRefreshAiScore = useRef(false);
 
   const normalizeSkillKey = (name: string) => name.trim().toLowerCase();
 
@@ -43,11 +44,23 @@ export default function CandidateDashboard() {
   const recommendedQuery = useRecommendedJobs(3);
   const matchedJobsQuery = useMatchedJobs({ minScore: 60, limit: 3, page: 1, pageSize: 3 });
   const assessmentHistoryQuery = useAssessmentHistory();
+  const refreshAiScore = useRefreshMyAiScore();
 
   useEffect(() => {
     const t = setTimeout(() => setPageLoading(false), 650);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role !== "candidate") return;
+    if (didRefreshAiScore.current) return;
+    didRefreshAiScore.current = true;
+    refreshAiScore.mutate(undefined, {
+      onSuccess: () => {
+        refreshMe();
+      },
+    });
+  }, [user, refreshAiScore, refreshMe]);
 
   const loading =
     pageLoading ||

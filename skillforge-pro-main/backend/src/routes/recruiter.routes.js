@@ -5,7 +5,12 @@ import { requireAuth, requireRole, requireVerifiedEmail } from "../middlewares/a
 import { requireRecruiterProfileComplete } from "../middlewares/recruiterProfile.js";
 import { getProfile, upsertProfile, uploadLogo } from "../controllers/recruiter.controller.js";
 import { createJob, listJobs, getJob, updateJob, deleteJob } from "../controllers/recruiterJobs.controller.js";
-import { listRecruiterCandidates, updateRecruiterCandidateStatus } from "../controllers/recruiterCandidates.controller.js";
+import {
+  listRecruiterCandidates,
+  updateRecruiterCandidateStatus,
+  sendRecruiterMessageToCandidate,
+  scheduleRecruiterInterview,
+} from "../controllers/recruiterCandidates.controller.js";
 import { listRecruiterActivity } from "../controllers/recruiterActivity.controller.js";
 import { listApplicantsForJob } from "../controllers/applications.controller.js";
 import { getRecruiterStats } from "../controllers/recruiterStats.controller.js";
@@ -116,6 +121,22 @@ router.patch(
   requireVerifiedEmail,
   requireRole("recruiter"),
   updateRecruiterCandidateStatus
+);
+
+router.post(
+  "/candidates/:id/message",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  sendRecruiterMessageToCandidate
+);
+
+router.post(
+  "/candidates/:id/schedule",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  scheduleRecruiterInterview
 );
 router.get(
   "/activity",

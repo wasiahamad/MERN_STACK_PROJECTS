@@ -610,8 +610,18 @@ export interface Candidate {
   title: string;
   location: string;
   skills: string[];
+  email?: string;
+  phone?: string;
+  about?: string;
+  socials?: {
+    github?: string;
+    linkedin?: string;
+    website?: string;
+  };
   aiScore: number;
   matchScore: number;
+  matchedSkills?: string[];
+  missingSkills?: string[];
   experience: string;
   appliedDate: string;
   status: "new" | "reviewed" | "shortlisted" | "interview" | "offered" | "rejected";

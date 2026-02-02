@@ -173,6 +173,14 @@ export function useRecruiterJobs(params: { status?: string; search?: string; pag
   });
 }
 
+export function useRecruiterJob(jobId?: string) {
+  return useQuery({
+    queryKey: ["recruiter", "job", jobId],
+    enabled: !!jobId,
+    queryFn: () => apiFetch<{ job: any }>(`/api/recruiter/jobs/${jobId}`),
+  });
+}
+
 export function useCreateRecruiterJob() {
   const qc = useQueryClient();
   return useMutation({
@@ -195,6 +203,19 @@ export function useDeleteRecruiterJob() {
   });
 }
 
+export function useUpdateRecruiterJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { jobId: string; body: any }) =>
+      apiFetch<{ job: any }>(`/api/recruiter/jobs/${params.jobId}`, { method: "PUT", body: params.body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "jobs"] });
+      qc.invalidateQueries({ queryKey: ["recruiter", "job", vars.jobId] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 export function useRecruiterCandidates(params: { search?: string; status?: string; jobId?: string; sort?: string; page?: number; pageSize?: number; limit?: number }) {
   return useQuery({
     queryKey: ["recruiter", "candidates", params],
@@ -209,6 +230,35 @@ export function useUpdateRecruiterCandidateStatus() {
       apiFetch<{ applicationId: string; status: string }>(`/api/recruiter/candidates/${params.applicationId}`, {
         method: "PATCH",
         body: { status: params.status },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "candidates"] });
+      qc.invalidateQueries({ queryKey: ["recruiter", "activity"] });
+    },
+  });
+}
+
+export function useRecruiterMessageCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { applicationId: string; message: string }) =>
+      apiFetch<{ ok: true }>(`/api/recruiter/candidates/${params.applicationId}/message`, {
+        method: "POST",
+        body: { message: params.message },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "activity"] });
+    },
+  });
+}
+
+export function useRecruiterScheduleInterview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { applicationId: string; scheduledFor: string; note?: string }) =>
+      apiFetch<{ ok: true; status?: string }>(`/api/recruiter/candidates/${params.applicationId}/schedule`, {
+        method: "POST",
+        body: { scheduledFor: params.scheduledFor, note: params.note },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["recruiter", "candidates"] });
@@ -367,6 +417,16 @@ export function useUpdateMe() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
+export function useRefreshMyAiScore() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<{ aiScore: number; breakdown?: any }>("/api/me/ai-score/refresh", { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me"] });
     },
   });
 }

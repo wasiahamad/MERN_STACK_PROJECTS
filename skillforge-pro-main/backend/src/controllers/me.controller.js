@@ -6,6 +6,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { RecruiterProfile } from "../models/RecruiterProfile.js";
 import { uploadImageBuffer } from "../utils/cloudinary.js";
 import { Job } from "../models/Job.js";
+import { applyCandidateAiScoreToUserDoc } from "../utils/aiScore.js";
 
 function mapSkill(s) {
   return { name: s.name, level: s.level, verified: !!s.verified };
@@ -158,7 +159,6 @@ export const updateMe = asyncHandler(async (req, res) => {
     about,
     socials,
     settings,
-    aiScore,
     reputation,
     skills,
     experience,
@@ -200,11 +200,6 @@ export const updateMe = asyncHandler(async (req, res) => {
 
   // Candidate-only fields (frontend uses these)
   if (req.user.role === "candidate") {
-    if (aiScore !== undefined) {
-      const n = Number(aiScore);
-      if (!Number.isFinite(n) || n < 0 || n > 100) throw new ApiError(400, "VALIDATION", "aiScore must be 0..100");
-      req.user.aiScore = n;
-    }
     if (reputation !== undefined) {
       const n = Number(reputation);
       if (!Number.isFinite(n) || n < 0 || n > 100)
@@ -217,6 +212,9 @@ export const updateMe = asyncHandler(async (req, res) => {
     if (Array.isArray(experience)) req.user.experience = experience;
     if (Array.isArray(education)) req.user.education = education;
     if (Array.isArray(certificates)) req.user.certificates = certificates;
+
+    // Dynamic AI score: recalc after profile changes
+    await applyCandidateAiScoreToUserDoc(req.user);
   }
 
   await req.user.save();
@@ -271,6 +269,7 @@ export const addSkill = asyncHandler(async (req, res) => {
     req.user.skills.push({ name: normalizedName, level: nLevel, verified: !!verified });
   }
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Skill saved");
 });
@@ -302,6 +301,7 @@ export const updateSkill = asyncHandler(async (req, res) => {
 
   if (verified !== undefined) req.user.skills[idx].verified = !!verified;
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Skill updated");
 });
@@ -318,6 +318,7 @@ export const deleteSkill = asyncHandler(async (req, res) => {
     throw new ApiError(404, "SKILL_NOT_FOUND", "Skill not found");
   }
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Skill deleted");
 });
@@ -339,6 +340,7 @@ export const addExperience = asyncHandler(async (req, res) => {
     description: typeof description === "string" ? description : "",
   });
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Experience added");
 });
@@ -358,6 +360,7 @@ export const updateExperience = asyncHandler(async (req, res) => {
   if (current !== undefined) exp.current = !!current;
   if (description !== undefined) exp.description = typeof description === "string" ? description : "";
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Experience updated");
 });
@@ -368,6 +371,8 @@ export const deleteExperience = asyncHandler(async (req, res) => {
   const exp = (req.user.experience || []).id(id);
   if (!exp) throw new ApiError(404, "EXPERIENCE_NOT_FOUND", "Experience not found");
   exp.deleteOne();
+
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Experience deleted");
 });
@@ -386,6 +391,7 @@ export const addEducation = asyncHandler(async (req, res) => {
     gpa: gpa ? String(gpa) : undefined,
   });
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Education added");
 });
@@ -402,6 +408,7 @@ export const updateEducation = asyncHandler(async (req, res) => {
   if (year !== undefined) edu.year = String(year);
   if (gpa !== undefined) edu.gpa = gpa ? String(gpa) : "";
 
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Education updated");
 });
@@ -412,6 +419,8 @@ export const deleteEducation = asyncHandler(async (req, res) => {
   const edu = (req.user.education || []).id(id);
   if (!edu) throw new ApiError(404, "EDUCATION_NOT_FOUND", "Education not found");
   edu.deleteOne();
+
+  await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();
   return ok(res, { user: mapUser(req.user) }, "Education deleted");
 });

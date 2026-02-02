@@ -17,6 +17,7 @@ import {
   updateEducation,
   deleteEducation,
 } from "../controllers/me.controller.js";
+import { refreshMyAiScore } from "../controllers/aiScore.controller.js";
 
 const router = express.Router();
 
@@ -33,6 +34,9 @@ router.get("/", requireAuth, requireVerifiedEmail, getMe);
 router.get("/saved-jobs", requireAuth, requireVerifiedEmail, listSavedJobs);
 router.put("/", requireAuth, requireVerifiedEmail, updateMe);
 router.post("/avatar", requireAuth, requireVerifiedEmail, upload.single("avatar"), uploadAvatar);
+
+// Candidate AI score
+router.post("/ai-score/refresh", requireAuth, requireVerifiedEmail, refreshMyAiScore);
 
 // Candidate profile CRUD
 router.post("/skills", requireAuth, requireVerifiedEmail, addSkill);

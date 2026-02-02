@@ -4,6 +4,7 @@ import { ok } from "../utils/responses.js";
 import { SkillAssessmentAttempt } from "../models/SkillAssessmentAttempt.js";
 import { generateSkillTest } from "../ai/assessments/generateSkillTest.js";
 import { User } from "../models/User.js";
+import { applyCandidateAiScoreToUserDoc } from "../utils/aiScore.js";
 
 function normalizeSkillName(v) {
   return String(v || "").trim();
@@ -151,6 +152,13 @@ export const submitAssessment = asyncHandler(async (req, res) => {
       { _id: req.user._id, "skills.name": attempt.skillName },
       { $set: { "skills.$.verified": true } }
     );
+  }
+
+  // Dynamic AI score: update after any assessment submission.
+  const user = await User.findById(req.user._id);
+  if (user?.role === "candidate") {
+    await applyCandidateAiScoreToUserDoc(user);
+    await user.save();
   }
 
   return ok(
