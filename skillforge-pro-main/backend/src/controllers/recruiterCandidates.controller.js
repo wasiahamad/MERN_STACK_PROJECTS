@@ -32,7 +32,16 @@ function applicationStatusFromRecruiterStatus(status) {
 }
 
 function mapCandidateFrom(user, application, job) {
-  const skills = Array.isArray(user.skills) ? user.skills.map((x) => String(x.name)) : [];
+  const skills = Array.isArray(user.skills)
+    ? user.skills
+        .map((x) => {
+          if (!x) return "";
+          if (typeof x === "string") return x;
+          return String(x.name || "");
+        })
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
   const minted = Array.isArray(user.certificates)
     ? user.certificates.filter((c) => c && c.nftMinted).map((c) => String(c.name))
     : [];
@@ -54,6 +63,7 @@ function mapCandidateFrom(user, application, job) {
     socials: user.socials || undefined,
     aiScore: typeof user.aiScore === "number" ? user.aiScore : 0,
     matchScore: typeof application.matchScore === "number" ? application.matchScore : 0,
+    profileMatchScore: 0,
     matchedSkills: [],
     missingSkills: [],
     experience: Array.isArray(user.experience) && user.experience.length ? `${user.experience.length} roles` : "",
@@ -98,20 +108,30 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
 
   // Precompute verified skill keys per candidate to enable match breakdown.
   const verifiedKeysByUserId = new Map();
+  const claimedKeysByUserId = new Map();
 
   for (const u of candidates) {
     const set = new Set();
+    const claimed = new Set();
 
     // Legacy verified skills
     if (Array.isArray(u.skills)) {
       for (const s of u.skills) {
-        if (!s || !s.verified) continue;
-        const k = normalizeSkillKey(s.name);
-        if (k) set.add(k);
+        if (!s) continue;
+
+        const skillName = typeof s === "string" ? s : s.name;
+        const ck = normalizeSkillKey(skillName);
+        if (ck) claimed.add(ck);
+
+        if (typeof s === "object" && s.verified) {
+          const k = normalizeSkillKey(s.name);
+          if (k) set.add(k);
+        }
       }
     }
 
     verifiedKeysByUserId.set(String(u._id), set);
+    claimedKeysByUserId.set(String(u._id), claimed);
   }
 
   // Assessment-verified skills (batched)
@@ -148,12 +168,18 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
 
       // Compute match (using VERIFIED skills) when missing/older applications have no matchScore.
       const verifiedKeys = verifiedKeysByUserId.get(String(user._id)) || new Set();
+      const claimedKeys = claimedKeysByUserId.get(String(user._id)) || new Set();
       const computed = job
         ? computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys: verifiedKeys })
         : { matchScore: 0, matchedSkills: [], missingSkills: [] };
 
+      const profileComputed = job
+        ? computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys: claimedKeys })
+        : { matchScore: 0 };
+
       const hasStored = typeof a.matchScore === "number" && Number.isFinite(a.matchScore);
       mapped.matchScore = hasStored ? a.matchScore : computed.matchScore;
+      mapped.profileMatchScore = profileComputed.matchScore;
       mapped.matchedSkills = computed.matchedSkills;
       mapped.missingSkills = computed.missingSkills;
 

@@ -312,7 +312,13 @@ function CandidateDetailsSheet({
                 <p className="text-sm text-muted-foreground truncate">{candidate.title}</p>
                 {candidate.jobTitle ? <p className="text-xs text-muted-foreground mt-1">Applied for: {candidate.jobTitle}</p> : null}
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge className="gradient-primary text-primary-foreground">{candidate.matchScore ?? 0}% Match</Badge>
+                  <Badge className="gradient-primary text-primary-foreground">
+                    {(candidate.profileMatchScore ?? candidate.matchScore ?? 0)}% Match
+                  </Badge>
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    Verified: {candidate.matchScore ?? 0}%
+                  </Badge>
                   <Badge variant="outline">AI Score: {candidate.aiScore ?? 0}</Badge>
                   <Badge variant="outline" className="capitalize">{candidate.status}</Badge>
                 </div>
@@ -485,7 +491,13 @@ function CandidateCard({
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
-                <Badge className="gradient-primary text-primary-foreground">{candidate.matchScore}% Match</Badge>
+                <Badge className="gradient-primary text-primary-foreground">
+                  {(candidate.profileMatchScore ?? candidate.matchScore ?? 0)}% Match
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  Verified: {candidate.matchScore ?? 0}%
+                </Badge>
                 <div className="relative">
                   <button
                     onClick={() => setStatusOpen(!statusOpen)}

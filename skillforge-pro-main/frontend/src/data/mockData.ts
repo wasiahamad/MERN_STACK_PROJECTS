@@ -639,6 +639,7 @@ export interface Candidate {
   };
   aiScore: number;
   matchScore: number;
+  profileMatchScore?: number;
   matchedSkills?: string[];
   missingSkills?: string[];
   experience: string;
