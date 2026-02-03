@@ -9,7 +9,7 @@ Backend-first implementation for:
 ## Quick start
 
 1) Create env
-- Copy `.env.example` to `.env` and fill values.
+- Copy `.env.` to `.env` and fill values.
 
 2) Install deps
 - `npm install`
@@ -60,7 +60,7 @@ These are optional environment variables:
 - `OPENROUTER_HTTP_REFERER` / `OPENROUTER_APP_TITLE` (optional, recommended)
 
 If `OPENROUTER_API_KEY` is not set, generation only works for skills with a small built-in fallback bank.
-
+fyifivku
 ## Testing
 
 Run tests:
