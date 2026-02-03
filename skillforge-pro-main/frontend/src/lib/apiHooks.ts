@@ -18,6 +18,32 @@ export type AssessmentQuestion = {
   difficulty: "easy" | "medium" | "hard";
 };
 
+export type JobAssessment = {
+  enabled: boolean;
+  passPercent: number;
+  marksPerQuestion: number;
+  questions: AssessmentQuestion[];
+  questionsCount: number;
+  updatedAt: string | null;
+};
+
+export type JobAssessmentAttemptSummary = {
+  id: string;
+  jobId: string;
+  status: "in_progress" | "submitted";
+  attemptNumber: number;
+  startedAt: string;
+  submittedAt: string | null;
+  correctCount: number;
+  totalQuestions: number;
+  marksPerQuestion: number;
+  totalMarks: number;
+  scoreMarks: number;
+  percent: number;
+  passPercent: number;
+  passed: boolean;
+};
+
 export type AssessmentAttempt = {
   id: string;
   skillName: string;
@@ -85,6 +111,78 @@ export function useAssessmentHistory(skillName?: string, options?: { enabled?: b
     queryKey: ["assessments", "history", { skillName }],
     enabled: options?.enabled ?? true,
     queryFn: () => apiFetch<{ items: AssessmentHistoryItem[] }>(`/api/assessments/history${toQueryString({ skillName })}`),
+  });
+}
+
+// Job screening assessments (per-job)
+export function useJobAssessment(jobId?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["jobs", jobId, "assessment"],
+    enabled: (options?.enabled ?? true) && !!jobId,
+    queryFn: () => apiFetch<{ assessment: JobAssessment; myAttempt: JobAssessmentAttemptSummary | null }>(`/api/jobs/${jobId}/assessment`),
+  });
+}
+
+export function useStartJobAssessmentAttempt(jobId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<{ attempt: JobAssessmentAttemptSummary }>(`/api/jobs/${jobId}/assessment/attempts`, { method: "POST", body: {} }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs", jobId, "assessment"] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+    },
+  });
+}
+
+export function useSubmitJobAssessmentAttempt(jobId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { attemptId: string; answers: { questionId: string; selectedIndex: number }[] }) =>
+      apiFetch<{ attempt: JobAssessmentAttemptSummary }>(`/api/jobs/${jobId}/assessment/attempts/${params.attemptId}/submit`, {
+        method: "POST",
+        body: { answers: params.answers },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs", jobId, "assessment"] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+    },
+  });
+}
+
+export function useRecruiterJobAssessment(jobId?: string) {
+  return useQuery({
+    queryKey: ["recruiter", "job", jobId, "assessment"],
+    enabled: !!jobId,
+    queryFn: () => apiFetch<{ assessment: any }>(`/api/recruiter/jobs/${jobId}/assessment`),
+  });
+}
+
+export function useUpdateRecruiterJobAssessment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { jobId: string; body: any }) =>
+      apiFetch<{ assessment: any }>(`/api/recruiter/jobs/${params.jobId}/assessment`, { method: "PUT", body: params.body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "job", vars.jobId, "assessment"] });
+      qc.invalidateQueries({ queryKey: ["recruiter", "job", vars.jobId] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+export function useGenerateRecruiterJobAssessmentQuestions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { jobId: string; replace?: boolean }) =>
+      apiFetch<{ assessment: any }>(`/api/recruiter/jobs/${params.jobId}/assessment/generate`, {
+        method: "POST",
+        body: { replace: params.replace ?? true },
+      }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["recruiter", "job", vars.jobId, "assessment"] });
+      qc.invalidateQueries({ queryKey: ["recruiter", "job", vars.jobId] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
   });
 }
 

@@ -6,6 +6,11 @@ import { requireRecruiterProfileComplete } from "../middlewares/recruiterProfile
 import { getProfile, upsertProfile, uploadLogo } from "../controllers/recruiter.controller.js";
 import { createJob, listJobs, getJob, updateJob, deleteJob } from "../controllers/recruiterJobs.controller.js";
 import {
+  recruiterGetJobAssessment,
+  recruiterUpsertJobAssessment,
+  recruiterGenerateJobAssessmentQuestions,
+} from "../controllers/jobAssessments.controller.js";
+import {
   listRecruiterCandidates,
   updateRecruiterCandidateStatus,
   sendRecruiterMessageToCandidate,
@@ -90,6 +95,31 @@ router.put(
   requireVerifiedEmail,
   requireRole("recruiter"),
   updateJob
+);
+
+// Job assessments (Recruiter-only)
+router.get(
+  "/jobs/:id/assessment",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  recruiterGetJobAssessment
+);
+
+router.put(
+  "/jobs/:id/assessment",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  recruiterUpsertJobAssessment
+);
+
+router.post(
+  "/jobs/:id/assessment/generate",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  recruiterGenerateJobAssessmentQuestions
 );
 
 router.delete(

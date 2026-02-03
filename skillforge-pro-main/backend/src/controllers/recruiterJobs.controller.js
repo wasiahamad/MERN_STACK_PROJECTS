@@ -28,6 +28,8 @@ function ensureOwner(job, userId) {
 }
 
 function mapRecruiterJob(job) {
+  const assessment = job.assessment || {};
+  const assessmentQuestions = Array.isArray(assessment.questions) ? assessment.questions : [];
   return {
     id: String(job._id),
     title: job.title,
@@ -48,6 +50,13 @@ function mapRecruiterJob(job) {
     companyLogo: job.companyLogo,
     industry: job.industry,
     companySize: job.companySize,
+    assessment: {
+      enabled: Boolean(assessment.enabled),
+      passPercent: typeof assessment.passPercent === "number" ? assessment.passPercent : 60,
+      marksPerQuestion: typeof assessment.marksPerQuestion === "number" ? assessment.marksPerQuestion : 1,
+      questionsCount: assessmentQuestions.length,
+      updatedAt: assessment.updatedAt || null,
+    },
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };

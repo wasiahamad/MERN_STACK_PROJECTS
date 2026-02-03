@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -34,6 +34,7 @@ import { CompanyLogo } from "@/components/ui/company-logo";
 
 export default function JobDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { isAuthenticated, isCandidate, user, refreshMe } = useAuth();
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -42,6 +43,10 @@ export default function JobDetail() {
 
   const { data, isLoading, isError, error } = usePublicJob(id);
   const job = data?.job;
+
+  const screeningRequired = Boolean(job?.assessment?.enabled);
+  const screeningPassPercent = typeof job?.assessment?.passPercent === "number" ? job.assessment.passPercent : 60;
+  const screeningPassed = Boolean(job?.myAssessment?.passed);
   const applyMutation = useApplyToJob(id);
   const toggleSaveMutation = useToggleSaveJob();
   const assessmentHistoryQuery = useAssessmentHistory(undefined, { enabled: isAuthenticated && isCandidate });
@@ -199,6 +204,15 @@ export default function JobDetail() {
       return;
     }
     if (!id) return;
+    if (screeningRequired && !screeningPassed) {
+      toast({
+        title: "Screening required",
+        description: `Pass the job screening assessment (${screeningPassPercent}%+) before applying.`,
+        variant: "destructive",
+      });
+      navigate(`/jobs/${id}/assessment`);
+      return;
+    }
     try {
       setApplying(true);
       await applyMutation.mutateAsync({ coverLetter: coverLetter.trim() || undefined });
@@ -473,6 +487,24 @@ export default function JobDetail() {
                   </div>
 
                   <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border">
+                    {screeningRequired ? (
+                      <div className="w-full rounded-xl border border-border bg-muted/20 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="text-sm">
+                          <p className="font-medium">Screening assessment</p>
+                          <p className="text-muted-foreground">
+                            {screeningPassed
+                              ? `Passed • ${job?.myAssessment?.percent ?? 0}%`
+                              : `Required • Pass ${screeningPassPercent}%+ to apply`}
+                          </p>
+                        </div>
+                        <Link to={`/jobs/${job.id}/assessment`}>
+                          <Button variant={screeningPassed ? "outline" : "default"}>
+                            {screeningPassed ? "View Assessment" : "Take Assessment"}
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : null}
+
                     <GradientButton
                       onClick={() => {
                         if (!isAuthenticated) {
@@ -480,6 +512,15 @@ export default function JobDetail() {
                             title: "Login required",
                             description: "Please login to apply.",
                           });
+                          return;
+                        }
+                        if (screeningRequired && !screeningPassed) {
+                          toast({
+                            title: "Screening required",
+                            description: `Pass the job screening assessment (${screeningPassPercent}%+) before applying.`,
+                            variant: "destructive",
+                          });
+                          navigate(`/jobs/${job.id}/assessment`);
                           return;
                         }
                         setApplyModalOpen(true);

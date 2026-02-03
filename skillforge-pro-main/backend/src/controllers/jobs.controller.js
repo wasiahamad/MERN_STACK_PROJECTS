@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { Job } from "../models/Job.js";
 import { User } from "../models/User.js";
 import { Application } from "../models/Application.js";
+import { JobAssessmentAttempt } from "../models/JobAssessmentAttempt.js";
 import { computeSkillMatch, getVerifiedSkillKeysForCandidate } from "../utils/skillMatching.js";
 
 function asStringArray(v) {
@@ -32,6 +33,8 @@ function formatSalary(job) {
 }
 
 function mapJobList(job) {
+  const assessment = job.assessment || {};
+  const assessmentQuestions = Array.isArray(assessment.questions) ? assessment.questions : [];
   return {
     id: String(job._id),
     title: job.title,
@@ -52,6 +55,13 @@ function mapJobList(job) {
     verified: true,
     applicants: 0,
     views: typeof job.views === "number" ? job.views : 0,
+    assessment: {
+      enabled: Boolean(assessment.enabled),
+      passPercent: typeof assessment.passPercent === "number" ? assessment.passPercent : 60,
+      marksPerQuestion: typeof assessment.marksPerQuestion === "number" ? assessment.marksPerQuestion : 1,
+      questionsCount: assessmentQuestions.length,
+      updatedAt: assessment.updatedAt || null,
+    },
   };
 }
 
@@ -167,6 +177,21 @@ export const getPublicJob = asyncHandler(async (req, res) => {
 
     const match = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys });
     mapped.matchScore = match.matchScore;
+
+    const myLatest = await JobAssessmentAttempt.findOne({ jobId: job._id, candidateId: req.user._id })
+      .sort({ attemptNumber: -1, createdAt: -1 })
+      .limit(1);
+
+    mapped.myAssessment = myLatest
+      ? {
+          attemptId: String(myLatest._id),
+          status: myLatest.status,
+          attemptNumber: myLatest.attemptNumber,
+          percent: myLatest.percent,
+          passed: Boolean(myLatest.passed),
+          submittedAt: myLatest.submittedAt || null,
+        }
+      : null;
   }
 
   return ok(res, { job: mapped }, "Job");

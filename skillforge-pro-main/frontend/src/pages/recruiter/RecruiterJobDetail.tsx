@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BadgeCheck, Briefcase, Calendar, Edit2, MapPin, Save, Trash2, Users } from "lucide-react";
@@ -11,10 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SkeletonLoader } from "@/components/ui/skeleton-loader";
 import { toast } from "@/hooks/use-toast";
-import { useDeleteRecruiterJob, useRecruiterCandidates, useRecruiterJob, useUpdateRecruiterJob } from "@/lib/apiHooks";
+import {
+  useDeleteRecruiterJob,
+  useGenerateRecruiterJobAssessmentQuestions,
+  useRecruiterCandidates,
+  useRecruiterJob,
+  useRecruiterJobAssessment,
+  useUpdateRecruiterJob,
+  useUpdateRecruiterJobAssessment,
+} from "@/lib/apiHooks";
 import { formatInrRange } from "@/lib/formatters";
 
 const jobTypes = ["Full-time", "Part-time", "Contract", "Remote"];
@@ -30,13 +40,39 @@ export default function RecruiterJobDetail() {
   const navigate = useNavigate();
 
   const jobQuery = useRecruiterJob(jobId);
+  const assessmentQuery = useRecruiterJobAssessment(jobId);
   const candidatesQuery = useRecruiterCandidates({ jobId, limit: 100, sort: "matchScore" });
   const updateJob = useUpdateRecruiterJob();
   const deleteJob = useDeleteRecruiterJob();
+  const updateAssessment = useUpdateRecruiterJobAssessment();
+  const generateAssessment = useGenerateRecruiterJobAssessmentQuestions();
 
   const [editOpen, setEditOpen] = useState(false);
 
   const job = jobQuery.data?.job;
+
+  const [assessmentDraft, setAssessmentDraft] = useState<any>({
+    enabled: false,
+    passPercent: 60,
+    marksPerQuestion: 1,
+    questions: [],
+  });
+
+  const [newQText, setNewQText] = useState("");
+  const [newQDifficulty, setNewQDifficulty] = useState<"easy" | "medium" | "hard">("easy");
+  const [newQOptions, setNewQOptions] = useState<string[]>(["", "", "", ""]);
+  const [newQCorrect, setNewQCorrect] = useState<number>(0);
+
+  useEffect(() => {
+    const a = assessmentQuery.data?.assessment;
+    if (!a) return;
+    setAssessmentDraft({
+      enabled: Boolean(a.enabled),
+      passPercent: typeof a.passPercent === "number" ? a.passPercent : 60,
+      marksPerQuestion: typeof a.marksPerQuestion === "number" ? a.marksPerQuestion : 1,
+      questions: Array.isArray(a.questions) ? a.questions : [],
+    });
+  }, [assessmentQuery.data?.assessment]);
 
   const salaryText = useMemo(() => {
     const min = typeof job?.salaryMin === "number" ? job.salaryMin : null;
@@ -167,6 +203,245 @@ export default function RecruiterJobDetail() {
                   <Button variant="outline" size="sm">View in Candidates</Button>
                 </Link>
               </div>
+            </div>
+          )}
+        </GlassCard>
+
+        {/* Screening assessment */}
+        <GlassCard className="p-6" hover={false}>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="font-display text-lg font-semibold">Screening Assessment</h3>
+              <p className="text-xs text-muted-foreground">Candidates must pass before applying (when enabled)</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Enabled</span>
+              <Switch
+                checked={Boolean(assessmentDraft.enabled)}
+                onCheckedChange={(v) => setAssessmentDraft((prev: any) => ({ ...prev, enabled: Boolean(v) }))}
+                disabled={!jobId}
+              />
+            </div>
+          </div>
+
+          {assessmentQuery.isLoading ? (
+            <div className="space-y-3">
+              <SkeletonLoader className="h-6 w-56 rounded" />
+              <SkeletonLoader className="h-10 w-full rounded" />
+            </div>
+          ) : assessmentQuery.isError ? (
+            <p className="text-muted-foreground">Failed to load assessment.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Pass Percent</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={assessmentDraft.passPercent}
+                    onChange={(e) => setAssessmentDraft((p: any) => ({ ...p, passPercent: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Marks / Question</Label>
+                  <Input
+                    type="number"
+                    min={0.25}
+                    step={0.25}
+                    value={assessmentDraft.marksPerQuestion}
+                    onChange={(e) => setAssessmentDraft((p: any) => ({ ...p, marksPerQuestion: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Questions</Label>
+                  <div className="h-10 rounded-md border border-input bg-background px-3 flex items-center text-sm">
+                    {Array.isArray(assessmentDraft.questions) ? assessmentDraft.questions.length : 0}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={async () => {
+                    try {
+                      await updateAssessment.mutateAsync({
+                        jobId,
+                        body: {
+                          enabled: assessmentDraft.enabled,
+                          passPercent: assessmentDraft.passPercent,
+                          marksPerQuestion: assessmentDraft.marksPerQuestion,
+                          questions: assessmentDraft.questions,
+                        },
+                      });
+                      toast({ title: "Saved", description: "Assessment updated" });
+                    } catch (e: any) {
+                      toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to save" });
+                    }
+                  }}
+                  disabled={updateAssessment.isPending || !jobId}
+                >
+                  <Save className="h-4 w-4" />
+                  Save Assessment
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await generateAssessment.mutateAsync({ jobId, replace: true });
+                      toast({ title: "Generated", description: "AI questions generated" });
+                    } catch (e: any) {
+                      toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to generate" });
+                    }
+                  }}
+                  disabled={generateAssessment.isPending || !jobId}
+                >
+                  Generate with AI
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-border p-4 space-y-3">
+                <p className="text-sm font-medium">Add manual question</p>
+                <div className="space-y-2">
+                  <Label>Question</Label>
+                  <Textarea value={newQText} onChange={(e) => setNewQText(e.target.value)} placeholder="Type the question" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Difficulty</Label>
+                    <Select value={newQDifficulty} onValueChange={(v) => setNewQDifficulty(v as any)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Difficulty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Correct Option</Label>
+                    <Select value={String(newQCorrect)} onValueChange={(v) => setNewQCorrect(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Correct" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Option A</SelectItem>
+                        <SelectItem value="1">Option B</SelectItem>
+                        <SelectItem value="2">Option C</SelectItem>
+                        <SelectItem value="3">Option D</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {newQOptions.map((opt, i) => (
+                    <div key={i} className="space-y-1">
+                      <Label>Option {String.fromCharCode(65 + i)}</Label>
+                      <Input
+                        value={opt}
+                        onChange={(e) =>
+                          setNewQOptions((prev) => {
+                            const next = [...prev];
+                            next[i] = e.target.value;
+                            return next;
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      const text = newQText.trim();
+                      if (!text) {
+                        toast({ variant: "destructive", title: "Validation", description: "Question text is required" });
+                        return;
+                      }
+                      if (newQOptions.some((o) => !o.trim())) {
+                        toast({ variant: "destructive", title: "Validation", description: "All 4 options are required" });
+                        return;
+                      }
+
+                      const nextQ = {
+                        text,
+                        difficulty: newQDifficulty,
+                        options: newQOptions.map((o) => o.trim()),
+                        correctIndex: newQCorrect,
+                      };
+
+                      setAssessmentDraft((p: any) => ({
+                        ...p,
+                        questions: [...(Array.isArray(p.questions) ? p.questions : []), nextQ].slice(0, 10),
+                      }));
+
+                      setNewQText("");
+                      setNewQDifficulty("easy");
+                      setNewQCorrect(0);
+                      setNewQOptions(["", "", "", ""]);
+                    }}
+                  >
+                    Add Question
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setNewQText("");
+                      setNewQDifficulty("easy");
+                      setNewQCorrect(0);
+                      setNewQOptions(["", "", "", ""]);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {(assessmentDraft.questions || []).length ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Questions</p>
+                  {(assessmentDraft.questions || []).map((q: any, idx: number) => (
+                    <div key={q.questionId || idx} className="rounded-xl border border-border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Q{idx + 1} • {q.difficulty}</p>
+                          <p className="font-medium mt-1 break-words">{q.text}</p>
+                          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            {(q.options || []).map((o: string, i: number) => (
+                              <li key={i} className={i === q.correctIndex ? "text-success" : ""}>
+                                {String.fromCharCode(65 + i)}. {o}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="text-destructive"
+                          onClick={() =>
+                            setAssessmentDraft((p: any) => ({
+                              ...p,
+                              questions: (p.questions || []).filter((_: any, i: number) => i !== idx),
+                            }))
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No questions yet. Add manually or generate with AI.</p>
+              )}
             </div>
           )}
         </GlassCard>

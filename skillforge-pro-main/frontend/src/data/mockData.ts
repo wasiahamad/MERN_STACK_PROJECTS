@@ -96,6 +96,25 @@ export interface Job {
   applicants: number;
   views: number;
   openPositions?: number;
+
+  assessment?: {
+    enabled: boolean;
+    passPercent: number;
+    marksPerQuestion: number;
+    questionsCount: number;
+    updatedAt: string | null;
+  };
+
+  myAssessment?:
+    | {
+        attemptId: string;
+        status: "in_progress" | "submitted";
+        attemptNumber: number;
+        percent: number;
+        passed: boolean;
+        submittedAt: string | null;
+      }
+    | null;
 }
 
 export interface Application {

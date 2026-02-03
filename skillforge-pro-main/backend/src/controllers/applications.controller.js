@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
 import { Notification } from "../models/Notification.js";
+import { JobAssessmentAttempt } from "../models/JobAssessmentAttempt.js";
 import { computeSkillMatch, getVerifiedSkillKeysForCandidate } from "../utils/skillMatching.js";
 
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -56,6 +57,26 @@ export const applyToJob = asyncHandler(async (req, res) => {
 
   const job = await Job.findById(id);
   if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
+
+  if (job.assessment?.enabled) {
+    const required = typeof job.assessment.passPercent === "number" ? job.assessment.passPercent : 60;
+    const passed = await JobAssessmentAttempt.findOne({
+      jobId: job._id,
+      candidateId: req.user._id,
+      status: "submitted",
+      passed: true,
+    })
+      .sort({ attemptNumber: -1, submittedAt: -1, createdAt: -1 })
+      .limit(1);
+
+    if (!passed) {
+      throw new ApiError(
+        400,
+        "ASSESSMENT_NOT_PASSED",
+        `You must pass the job screening assessment (${required}%+) before applying`
+      );
+    }
+  }
 
   const verifiedSkillKeys = await getVerifiedSkillKeysForCandidate({
     userId: req.user._id,

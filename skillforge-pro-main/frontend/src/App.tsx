@@ -29,6 +29,7 @@ import DAO from "./pages/DAO";
 import Settings from "./pages/Settings";
 import NotificationsPage from "./pages/Notifications";
 import SkillAssessment from "./pages/SkillAssessment";
+import JobAssessment from "./pages/JobAssessment";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import CreateJob from "./pages/recruiter/CreateJob";
 import RecruiterJobDetail from "./pages/recruiter/RecruiterJobDetail";
@@ -92,6 +93,12 @@ const App = () => (
             <Route path="/assessment/:skillName" element={
               <ProtectedRoute requiredRole="candidate">
                 <SkillAssessment />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/jobs/:id/assessment" element={
+              <ProtectedRoute requiredRole="candidate">
+                <JobAssessment />
               </ProtectedRoute>
             } />
             

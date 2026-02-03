@@ -5,6 +5,12 @@ import { listMatchedJobs } from "../controllers/matchedJobs.controller.js";
 import { requireAuth, requireRole, requireVerifiedEmail } from "../middlewares/auth.js";
 import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { applyToJob } from "../controllers/applications.controller.js";
+import {
+  candidateGetJobAssessment,
+  candidateStartJobAssessmentAttempt,
+  candidateSubmitJobAssessmentAttempt,
+  candidateGetMyLatestJobAssessmentAttempt,
+} from "../controllers/jobAssessments.controller.js";
 
 const router = express.Router();
 
@@ -28,6 +34,40 @@ router.get(
   requireRole("candidate"),
   listMatchedJobs
 );
+
+// Candidate job assessment
+router.get(
+  "/:id/assessment",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  candidateGetJobAssessment
+);
+
+router.get(
+  "/:id/assessment/my-attempt",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  candidateGetMyLatestJobAssessmentAttempt
+);
+
+router.post(
+  "/:id/assessment/attempts",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  candidateStartJobAssessmentAttempt
+);
+
+router.post(
+  "/:id/assessment/attempts/:attemptId/submit",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  candidateSubmitJobAssessmentAttempt
+);
+
 router.get("/:id", optionalAuth, getPublicJob);
 
 // Candidate apply
