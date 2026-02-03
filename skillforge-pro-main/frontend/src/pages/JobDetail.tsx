@@ -69,6 +69,22 @@ export default function JobDetail() {
       mern: "mern stack",
       mernstack: "mern stack",
       "mern stack": "mern stack",
+
+      webdev: "web development",
+      "web development": "web development",
+      "web developer": "web development",
+      frontend: "frontend development",
+      "front end": "frontend development",
+      "frontend development": "frontend development",
+      backend: "backend development",
+      "back end": "backend development",
+      "backend development": "backend development",
+      fullstack: "full stack",
+      "full stack": "full stack",
+      "full stack development": "full stack",
+      "api development": "api development",
+      "rest api": "api development",
+      rest: "api development",
     };
 
     return aliases[compact] || aliases[aliasKey] || compact;
@@ -93,6 +109,75 @@ export default function JobDetail() {
 
     return keys;
   }, [assessmentHistoryQuery.data?.items, user?.skills]);
+
+
+  const expandedVerifiedSkillKeys = useMemo(() => {
+    const expansions: Record<string, string[]> = {
+      "web development": [
+        "frontend development",
+        "backend development",
+        "full stack",
+        "javascript",
+        "typescript",
+        "html",
+        "css",
+        "react",
+        "node",
+        "express",
+        "mongodb",
+        "api development",
+      ],
+      "frontend development": ["javascript", "typescript", "html", "css", "react"],
+      "backend development": ["node", "express", "mongodb", "api development"],
+      "full stack": ["frontend development", "backend development", "react", "node", "express", "mongodb"],
+      "mern stack": ["react", "node", "express", "mongodb", "javascript"],
+    };
+
+    const out = new Set<string>();
+    const queue: string[] = [];
+
+    for (const k of verifiedSkillKeys) {
+      const nk = normalizeSkillKey(k);
+      if (!nk || out.has(nk)) continue;
+      out.add(nk);
+      queue.push(nk);
+    }
+
+    // bi-directional: member implies category too
+    const reverse = new Map<string, Set<string>>();
+    for (const [cat, members] of Object.entries(expansions)) {
+      const c = normalizeSkillKey(cat);
+      for (const m of members) {
+        const mk = normalizeSkillKey(m);
+        if (!mk) continue;
+        const set = reverse.get(mk) || new Set<string>();
+        set.add(c);
+        reverse.set(mk, set);
+      }
+    }
+
+    while (queue.length) {
+      const cur = queue.shift() as string;
+      const direct = expansions[cur] || [];
+      const rev = Array.from(reverse.get(cur) || []);
+      for (const e of [...direct, ...rev]) {
+        const ne = normalizeSkillKey(e);
+        if (!ne || out.has(ne)) continue;
+        out.add(ne);
+        queue.push(ne);
+      }
+    }
+
+    return out;
+  }, [normalizeSkillKey, verifiedSkillKeys]);
+
+  const requirementsLines = useMemo(() => {
+    const raw = Array.isArray(job?.requirements) ? job?.requirements : [];
+    return raw
+      .flatMap((r) => String(r).split(/\r?\n|,/g))
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [job?.requirements]);
 
   useEffect(() => {
     if (!job?.id) return;
@@ -199,7 +284,7 @@ export default function JobDetail() {
 
     const requiredSkills = Array.isArray(job.skills) ? job.skills : [];
     const requiredKeys = requiredSkills.map((s) => normalizeSkillKey(s)).filter(Boolean);
-    const overlap = requiredKeys.length ? requiredKeys.filter((k) => verifiedSkillKeys.has(k)).length : 0;
+    const overlap = requiredKeys.length ? requiredKeys.filter((k) => expandedVerifiedSkillKeys.has(k)).length : 0;
     const computedSkillMatch = requiredKeys.length ? Math.round((overlap / requiredKeys.length) * 100) : 0;
 
     const certMatch =
@@ -432,7 +517,7 @@ export default function JobDetail() {
 
                   <h3 className="font-display text-lg font-semibold mt-6 mb-3">Requirements</h3>
                   <ul className="space-y-2">
-                    {job.requirements.map((req, index) => (
+                    {requirementsLines.map((req, index) => (
                       <li key={index} className="flex items-start gap-2 text-muted-foreground">
                         <CheckCircle className="h-5 w-5 text-success shrink-0 mt-0.5" />
                         {req}

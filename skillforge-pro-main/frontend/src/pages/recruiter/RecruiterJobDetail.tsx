@@ -143,9 +143,13 @@ export default function RecruiterJobDetail() {
                 <div>
                   <p className="text-sm font-medium mb-2">Requirements</p>
                   <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                    {(job.requirements || []).map((r: string) => (
-                      <li key={r}>{r}</li>
-                    ))}
+                    {(job.requirements || [])
+                      .flatMap((r: string) => String(r).split(/\r?\n|,/g))
+                      .map((s: string) => s.trim())
+                      .filter(Boolean)
+                      .map((r: string) => (
+                        <li key={r}>{r}</li>
+                      ))}
                   </ul>
                 </div>
               ) : null}

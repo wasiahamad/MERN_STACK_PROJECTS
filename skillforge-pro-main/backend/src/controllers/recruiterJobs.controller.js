@@ -12,6 +12,14 @@ function asNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeRequirements(input) {
+  const arr = Array.isArray(input) ? input : [];
+  return arr
+    .flatMap((x) => String(x).split(/\r?\n|,/g))
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function ensureOwner(job, userId) {
   if (!job) throw new ApiError(404, "JOB_NOT_FOUND", "Job not found");
   if (String(job.recruiterId) !== String(userId)) {
@@ -80,7 +88,7 @@ export const createJob = asyncHandler(async (req, res) => {
   }
 
   const certs = Array.isArray(requiredCertificates) ? requiredCertificates : [];
-  const reqs = Array.isArray(requirements) ? requirements : [];
+  const reqs = normalizeRequirements(requirements);
 
   const job = await Job.create({
     recruiterId: req.user._id,
@@ -146,8 +154,7 @@ export const updateJob = asyncHandler(async (req, res) => {
   if (description !== undefined) job.description = String(description);
 
   if (requirements !== undefined) {
-    const reqs = Array.isArray(requirements) ? requirements : [];
-    job.requirements = reqs.map((x) => String(x)).filter(Boolean);
+    job.requirements = normalizeRequirements(requirements);
   }
 
   if (skills !== undefined) {
