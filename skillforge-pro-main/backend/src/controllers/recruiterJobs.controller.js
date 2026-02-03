@@ -29,6 +29,7 @@ function mapRecruiterJob(job) {
     salaryMax: job.salaryMax,
     experience: job.experience,
     description: job.description,
+    requirements: Array.isArray(job.requirements) ? job.requirements : [],
     skills: job.skills,
     minAiScore: job.minAiScore,
     requiredCertificates: job.requiredCertificates,

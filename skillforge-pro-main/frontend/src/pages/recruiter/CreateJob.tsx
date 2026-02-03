@@ -33,8 +33,10 @@ export default function CreateJob() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
+  const [requirements, setRequirements] = useState<string[]>([]);
   const [certificates, setCertificates] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
+  const [newRequirement, setNewRequirement] = useState("");
   const [newCert, setNewCert] = useState("");
   const createJob = useCreateRecruiterJob();
 
@@ -47,6 +49,18 @@ export default function CreateJob() {
 
   const removeSkill = (skill: string) => {
     setSkills(skills.filter((s) => s !== skill));
+  };
+
+  const addRequirement = (reqText: string) => {
+    const v = String(reqText || "").trim();
+    if (v && !requirements.includes(v)) {
+      setRequirements([...requirements, v]);
+    }
+    setNewRequirement("");
+  };
+
+  const removeRequirement = (reqText: string) => {
+    setRequirements(requirements.filter((r) => r !== reqText));
   };
 
   const addCertificate = () => {
@@ -96,6 +110,7 @@ export default function CreateJob() {
         salaryMax,
         experience,
         description,
+        requirements,
         skills,
         minAiScore,
         requiredCertificates: certificates,
@@ -218,6 +233,54 @@ export default function CreateJob() {
                 className="min-h-[200px]"
                 required
               />
+            </GlassCard>
+          </motion.div>
+
+          {/* Requirements */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <GlassCard className="p-6">
+              <h2 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Requirements
+              </h2>
+
+              {/* Selected Requirements */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {requirements.map((r) => (
+                  <Badge key={r} variant="outline" className="text-xs pr-1">
+                    {r}
+                    <button
+                      type="button"
+                      onClick={() => removeRequirement(r)}
+                      className="ml-2 p-0.5 rounded-full hover:bg-muted"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+
+              {/* Add Requirement */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a requirement... (e.g., Good communication)"
+                  value={newRequirement}
+                  onChange={(e) => setNewRequirement(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addRequirement(newRequirement);
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={() => addRequirement(newRequirement)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </GlassCard>
           </motion.div>
 

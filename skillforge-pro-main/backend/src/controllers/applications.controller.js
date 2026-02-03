@@ -3,6 +3,7 @@ import { created, ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Application } from "../models/Application.js";
 import { Job } from "../models/Job.js";
+import { Notification } from "../models/Notification.js";
 import { computeSkillMatch, getVerifiedSkillKeysForCandidate } from "../utils/skillMatching.js";
 
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -79,6 +80,16 @@ export const applyToJob = asyncHandler(async (req, res) => {
       matchScore,
       aiVerified: false,
       nftVerified: false,
+    });
+
+    // Notify recruiter about new application
+    await Notification.create({
+      userId: job.recruiterId,
+      type: "application",
+      title: "New application received",
+      message: `Job: ${job.title}\nCandidate: ${req.user?.name || req.user?.email || ""}\nMatch: ${matchScore}%`,
+      time: new Date().toISOString(),
+      read: false,
     });
 
     return created(
@@ -178,6 +189,17 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
 
   app.status = normalized;
   await app.save();
+
+  // Notify candidate about status update
+  const job = await Job.findById(app.jobId).select({ title: 1 });
+  await Notification.create({
+    userId: app.candidateId,
+    type: "status",
+    title: "Application status updated",
+    message: `${job?.title ? `Job: ${job.title}\n` : ""}New status: ${app.status}`,
+    time: new Date().toISOString(),
+    read: false,
+  });
 
   return ok(res, { id: String(app._id), status: app.status }, "Application updated");
 });

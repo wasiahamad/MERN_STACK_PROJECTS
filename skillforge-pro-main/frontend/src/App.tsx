@@ -27,6 +27,7 @@ import Profile from "./pages/Profile";
 import Certificates from "./pages/Certificates";
 import DAO from "./pages/DAO";
 import Settings from "./pages/Settings";
+import NotificationsPage from "./pages/Notifications";
 import SkillAssessment from "./pages/SkillAssessment";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import CreateJob from "./pages/recruiter/CreateJob";
@@ -103,6 +104,12 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             } />
             

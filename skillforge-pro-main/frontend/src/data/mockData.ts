@@ -547,7 +547,7 @@ export const mockCompanies: Company[] = [
 // Mock notifications
 export interface Notification {
   id: string;
-  type: "application" | "interview" | "message" | "system";
+  type: "application" | "interview" | "message" | "system" | "status" | "info";
   title: string;
   message: string;
   time: string;

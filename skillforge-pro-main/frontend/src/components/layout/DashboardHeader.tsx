@@ -11,8 +11,16 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { mockNotifications } from "@/data/mockData";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMarkNotificationRead, useNotifications, useReadAllNotifications } from "@/lib/apiHooks";
+
+function formatTime(t: string) {
+  const s = String(t || "").trim();
+  const d = new Date(s);
+  if (!s) return "";
+  if (!Number.isNaN(d.getTime())) return d.toLocaleString();
+  return s;
+}
 
 interface DashboardHeaderProps {
   onMenuClick: () => void;
@@ -24,7 +32,13 @@ export function DashboardHeader({ onMenuClick, onLogout }: DashboardHeaderProps)
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const unreadCount = mockNotifications.filter((n) => !n.read).length;
+  const notificationsQuery = useNotifications(false);
+  const markRead = useMarkNotificationRead();
+  const readAll = useReadAllNotifications();
+
+  const notifications = notificationsQuery.data?.items || [];
+
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
 
   const avatarSrc = (() => {
     const a = (user?.avatar || "").trim();
@@ -87,37 +101,60 @@ export function DashboardHeader({ onMenuClick, onLogout }: DashboardHeaderProps)
                     className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-80 rounded-xl border border-border bg-card shadow-lg overflow-hidden z-50"
                   >
                     <div className="p-4 border-b border-border">
-                      <h3 className="font-semibold">Notifications</h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold">Notifications</h3>
+                        <button
+                          onClick={() => readAll.mutate()}
+                          className="text-xs text-primary hover:underline disabled:opacity-50"
+                          disabled={readAll.isPending}
+                        >
+                          Mark all read
+                        </button>
+                      </div>
                     </div>
                     <div className="max-h-80 overflow-auto">
-                      {mockNotifications.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={cn(
-                            "p-4 border-b border-border hover:bg-muted/50 cursor-pointer",
-                            !notif.read && "bg-primary/5"
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={cn(
-                                "h-2 w-2 rounded-full mt-2 shrink-0",
-                                notif.read ? "bg-muted-foreground" : "bg-primary"
-                              )}
-                            />
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate">{notif.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notif.message}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{notif.time}</p>
+                      {notificationsQuery.isLoading ? (
+                        <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+                      ) : notificationsQuery.isError ? (
+                        <div className="p-4 text-sm text-muted-foreground">Failed to load.</div>
+                      ) : notifications.length ? (
+                        notifications.slice(0, 10).map((notif: any) => (
+                          <button
+                            type="button"
+                            key={notif.id}
+                            onClick={() => markRead.mutate({ id: notif.id, read: true })}
+                            className={cn(
+                              "w-full text-left p-4 border-b border-border hover:bg-muted/50 cursor-pointer",
+                              !notif.read && "bg-primary/5"
+                            )}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={cn(
+                                  "h-2 w-2 rounded-full mt-2 shrink-0",
+                                  notif.read ? "bg-muted-foreground" : "bg-primary"
+                                )}
+                              />
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{notif.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">{notif.message}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{formatTime(notif.time)}</p>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      ))}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-sm text-muted-foreground">No notifications.</div>
+                      )}
                     </div>
                     <div className="p-2">
-                      <button className="w-full text-center text-sm text-primary py-2 hover:underline">
+                      <Link
+                        to="/notifications"
+                        onClick={() => setNotificationsOpen(false)}
+                        className="block w-full text-center text-sm text-primary py-2 hover:underline"
+                      >
                         View All Notifications
-                      </button>
+                      </Link>
                     </div>
                   </motion.div>
                 </>

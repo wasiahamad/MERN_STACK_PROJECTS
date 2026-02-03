@@ -139,6 +139,17 @@ export default function RecruiterJobDetail() {
                 </div>
               </div>
 
+              {(job.requirements || []).length ? (
+                <div>
+                  <p className="text-sm font-medium mb-2">Requirements</p>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                    {(job.requirements || []).map((r: string) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               <div>
                 <p className="text-sm font-medium mb-2">Description</p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.description}</p>
@@ -267,6 +278,12 @@ function EditJobSheet({
               .map((s) => s.trim())
               .filter(Boolean);
 
+            const requirementsRaw = String(form.get("requirements") || "");
+            const requirements = requirementsRaw
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean);
+
             if (!skills.length) {
               toast({ variant: "destructive", title: "Validation", description: "Please add at least 1 skill." });
               return;
@@ -290,6 +307,7 @@ function EditJobSheet({
                 description,
                 salaryMin,
                 salaryMax,
+                requirements,
                 skills,
                 minAiScore,
                 status,
@@ -370,6 +388,17 @@ function EditJobSheet({
           <div className="space-y-1">
             <Label htmlFor="skills">Skills (comma separated)</Label>
             <Input name="skills" id="skills" defaultValue={Array.isArray(job.skills) ? job.skills.join(", ") : ""} required />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="requirements">Requirements (one per line)</Label>
+            <Textarea
+              name="requirements"
+              id="requirements"
+              defaultValue={Array.isArray(job.requirements) ? job.requirements.join("\n") : ""}
+              className="min-h-[110px]"
+              placeholder="e.g.\nGood communication\nTeam player\nProblem solving"
+            />
           </div>
 
           <div className="space-y-1">

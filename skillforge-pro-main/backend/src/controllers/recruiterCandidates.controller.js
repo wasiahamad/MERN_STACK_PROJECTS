@@ -248,6 +248,16 @@ export const updateRecruiterCandidateStatus = asyncHandler(async (req, res) => {
   app.status = String(normalized);
   await app.save();
 
+  const job = await Job.findById(app.jobId).select({ title: 1 });
+  await Notification.create({
+    userId: app.candidateId,
+    type: "status",
+    title: "Application update",
+    message: `${job?.title ? `Job: ${job.title}\n` : ""}Status: ${recruiterStatusFromApplication(app.status)}`,
+    time: new Date().toISOString(),
+    read: false,
+  });
+
   return ok(
     res,
     {
