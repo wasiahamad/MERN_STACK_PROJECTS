@@ -54,7 +54,7 @@ Error:
 These are optional environment variables:
 
 - `OPENROUTER_API_KEY` (required to generate questions for any skill)
-- `OPENROUTER_MODEL` (optional, defaults to `openrouter/auto`)
+- `OPENROUTER_MODEL` (optional, defaults to `openrouter/GPT5.2`)
 - `OPENROUTER_BASE_URL` (optional, defaults to `https://openrouter.ai/api/v1`)
 - `OPENROUTER_MAX_TOKENS` (optional, defaults to `1200`)
 - `OPENROUTER_HTTP_REFERER` / `OPENROUTER_APP_TITLE` (optional, recommended)
