@@ -98,7 +98,7 @@ export function HeroSection() {
               { label: "Active Jobs", value: "10K+" },
               { label: "Verified Candidates", value: "50K+" },
               { label: "NFT Certificates", value: "25K+" },
-              { label: "Companies", value: "2K+" },
+              { label: "Companies", value: "22K+" },
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
