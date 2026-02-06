@@ -1,10 +1,12 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 // Hardhat in this repo is for contracts/tests only.
 // Backend runtime uses ethers.js directly (see src/services/blockchain.service.js).
 
 const RPC_URL = process.env.BLOCKCHAIN_RPC_URL || "";
-const PRIVATE_KEY = process.env.BLOCKCHAIN_PRIVATE_KEY || "";
+// Hardhat expects raw private key strings; tolerate optional 0x prefix.
+const PRIVATE_KEY = (process.env.BLOCKCHAIN_PRIVATE_KEY || "").replace(/^0x/, "");
 
 /** @type {import('hardhat/config').HardhatUserConfig} */
 module.exports = {

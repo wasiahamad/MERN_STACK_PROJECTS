@@ -66,14 +66,14 @@ function getClients() {
   return cached;
 }
 
-async function assertContractDeployed(provider, address, label) {
+async function assertContractDeployed(provider, address, label, addressEnvVar) {
   const code = await provider.getCode(address);
   if (!code || code === "0x") {
     const network = await provider.getNetwork().catch(() => null);
     const chainId = network?.chainId != null ? String(network.chainId) : "unknown";
     const err = new Error(
       `${label} has no bytecode at ${address} on chainId=${chainId}. ` +
-        `Check BLOCKCHAIN_RPC_URL and ${label.toUpperCase().replace(/\s+/g, "_")}_ADDRESS (or redeploy the contracts to this network).`
+        `Check BLOCKCHAIN_RPC_URL and ${addressEnvVar} (or redeploy the contracts to this network).`
     );
     err.status = 503;
     err.code = "BLOCKCHAIN_CONTRACT_NOT_DEPLOYED";
@@ -99,7 +99,12 @@ function explorerTxUrl(txHash) {
 
 export async function issueCertificateOnChain(certHashHex) {
   const { provider, certificateRegistry } = getClients();
-  await assertContractDeployed(provider, certificateRegistry.target, "CertificateRegistry");
+  await assertContractDeployed(
+    provider,
+    certificateRegistry.target,
+    "CertificateRegistry",
+    "CERTIFICATE_REGISTRY_ADDRESS"
+  );
 
   const bytes32 = asBytes32(certHashHex);
   const already = await certificateRegistry.issued(bytes32);
@@ -122,7 +127,12 @@ export async function issueCertificateOnChain(certHashHex) {
 
 export async function verifyCertificateOnChain(certHashHex) {
   const { provider, certificateRegistry } = getClients();
-  await assertContractDeployed(provider, certificateRegistry.target, "CertificateRegistry");
+  await assertContractDeployed(
+    provider,
+    certificateRegistry.target,
+    "CertificateRegistry",
+    "CERTIFICATE_REGISTRY_ADDRESS"
+  );
   const bytes32 = asBytes32(certHashHex);
   const ok = await certificateRegistry.verifyCertificate(bytes32);
   return { verified: !!ok, contractAddress: certificateRegistry.target, network: env.BLOCKCHAIN_NETWORK };
@@ -130,7 +140,7 @@ export async function verifyCertificateOnChain(certHashHex) {
 
 export async function createDaoProposalOnChain(proposalHashHex) {
   const { provider, daoGovernance } = getClients();
-  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance");
+  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance", "DAO_GOVERNANCE_ADDRESS");
   const bytes32 = asBytes32(proposalHashHex);
 
   const tx = await daoGovernance.createProposal(bytes32);
@@ -146,7 +156,7 @@ export async function createDaoProposalOnChain(proposalHashHex) {
 
 export async function recordDaoVoteOnChain({ proposalHashHex, voterAddress, support }) {
   const { provider, daoGovernance } = getClients();
-  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance");
+  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance", "DAO_GOVERNANCE_ADDRESS");
   const bytes32 = asBytes32(proposalHashHex);
   const voter = ethers.getAddress(String(voterAddress));
 
@@ -170,7 +180,7 @@ export async function recordDaoVoteOnChain({ proposalHashHex, voterAddress, supp
 
 export async function getDaoCountsOnChain(proposalHashHex) {
   const { provider, daoGovernance } = getClients();
-  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance");
+  await assertContractDeployed(provider, daoGovernance.target, "DAOGovernance", "DAO_GOVERNANCE_ADDRESS");
   const bytes32 = asBytes32(proposalHashHex);
   const [forVotes, againstVotes] = await daoGovernance.getCounts(bytes32);
   return {
