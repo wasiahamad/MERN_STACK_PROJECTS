@@ -46,6 +46,23 @@ function mapCandidateFrom(user, application, job) {
     ? user.certificates.filter((c) => c && c.nftMinted).map((c) => String(c.name))
     : [];
 
+  const certificates = Array.isArray(user.certificates)
+    ? user.certificates
+        .filter(Boolean)
+        .map((c) => ({
+          id: String(c._id),
+          name: c.name,
+          issuer: c.issuer,
+          date: c.date,
+          nftMinted: !!c.nftMinted,
+          tokenId: c.tokenId || undefined,
+          image: c.image || "",
+          fileName: c.fileName || undefined,
+          fileMime: c.fileMime || undefined,
+          verified: !!c.verified,
+        }))
+    : [];
+
   return {
     applicationId: String(application._id),
     jobId: String(application.jobId),
@@ -61,6 +78,9 @@ function mapCandidateFrom(user, application, job) {
     phone: user.phone || "",
     about: user.about || "",
     socials: user.socials || undefined,
+    resumeUrl: user.resumeUrl || undefined,
+    resumeFileName: user.resumeFileName || undefined,
+    resumeMime: user.resumeMime || undefined,
     aiScore: typeof user.aiScore === "number" ? user.aiScore : 0,
     matchScore: typeof application.matchScore === "number" ? application.matchScore : 0,
     profileMatchScore: 0,
@@ -70,6 +90,7 @@ function mapCandidateFrom(user, application, job) {
     appliedDate: toYyyyMmDd(application.createdAt),
     status: recruiterStatusFromApplication(application.status),
     nftCertificates: minted,
+    certificates,
     reputation: typeof user.reputation === "number" ? user.reputation : 0,
   };
 }

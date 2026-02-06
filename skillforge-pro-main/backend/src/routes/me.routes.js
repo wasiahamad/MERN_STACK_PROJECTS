@@ -1,11 +1,14 @@
 import express from "express";
 import multer from "multer";
+import path from "path";
+import crypto from "crypto";
 
 import { requireAuth, requireVerifiedEmail } from "../middlewares/auth.js";
 import {
   getMe,
   updateMe,
   uploadAvatar,
+  uploadResume,
   listSavedJobs,
   getWalletNonce,
   linkWallet,
@@ -32,12 +35,28 @@ const upload = multer({
   },
 });
 
+const resumeUpload = multer({
+  storage: multer.diskStorage({
+    destination: "uploads/resumes",
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      cb(null, `${crypto.randomBytes(16).toString("hex")}${ext === ".pdf" ? ".pdf" : ""}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = String(file.mimetype || "").toLowerCase() === "application/pdf";
+    cb(ok ? null : new Error("Only PDF resumes are allowed"), ok);
+  },
+});
+
 router.get("/", requireAuth, requireVerifiedEmail, getMe);
 router.get("/wallet/nonce", requireAuth, requireVerifiedEmail, getWalletNonce);
 router.post("/wallet/link", requireAuth, requireVerifiedEmail, linkWallet);
 router.get("/saved-jobs", requireAuth, requireVerifiedEmail, listSavedJobs);
 router.put("/", requireAuth, requireVerifiedEmail, updateMe);
 router.post("/avatar", requireAuth, requireVerifiedEmail, upload.single("avatar"), uploadAvatar);
+router.post("/resume", requireAuth, requireVerifiedEmail, resumeUpload.single("resume"), uploadResume);
 
 // Candidate AI score
 router.post("/ai-score/refresh", requireAuth, requireVerifiedEmail, refreshMyAiScore);

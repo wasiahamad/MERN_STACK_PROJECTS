@@ -33,6 +33,9 @@ export interface User {
   experience?: Experience[];
   education?: Education[];
   certificates?: Certificate[];
+  resumeUrl?: string;
+  resumeFileName?: string;
+  resumeMime?: string;
   aiScore?: number;
   reputation?: number;
   savedJobIds?: string[];
@@ -71,6 +74,8 @@ export interface Certificate {
   nftMinted: boolean;
   tokenId?: string;
   image: string;
+  fileName?: string;
+  fileMime?: string;
   verified: boolean;
 
   // Optional on-chain metadata (real API responses may include these)
@@ -653,6 +658,10 @@ export interface Candidate {
   appliedDate: string;
   status: "new" | "reviewed" | "shortlisted" | "interview" | "offered" | "rejected";
   nftCertificates: string[];
+  certificates?: Certificate[];
+  resumeUrl?: string;
+  resumeFileName?: string;
+  resumeMime?: string;
   reputation: number;
 }
 

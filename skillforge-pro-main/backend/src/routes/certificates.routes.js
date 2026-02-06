@@ -1,5 +1,7 @@
 import express from "express";
 import multer from "multer";
+import path from "path";
+import crypto from "crypto";
 
 import { requireAuth, requireRole, requireVerifiedEmail } from "../middlewares/auth.js";
 import {
@@ -13,8 +15,25 @@ import {
 const router = express.Router();
 
 const upload = multer({
-  dest: "uploads",
+  storage: multer.diskStorage({
+    destination: "uploads/certificates",
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const safeExt = ext && /^\.[a-z0-9]+$/.test(ext) ? ext : "";
+      cb(null, `${crypto.randomBytes(16).toString("hex")}${safeExt}`);
+    },
+  }),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const mime = String(file.mimetype || "").toLowerCase();
+    const ok =
+      mime === "application/pdf" ||
+      mime === "image/png" ||
+      mime === "image/jpeg" ||
+      mime === "image/jpg" ||
+      mime === "image/webp";
+    cb(ok ? null : new Error("Only PDF, PNG, JPG, JPEG, or WEBP files are allowed"), ok);
+  },
 });
 
 router.get("/me", requireAuth, requireVerifiedEmail, requireRole("candidate"), listMyCertificates);

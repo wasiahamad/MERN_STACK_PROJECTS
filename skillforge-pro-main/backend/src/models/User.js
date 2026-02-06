@@ -78,6 +78,12 @@ const UserSchema = new mongoose.Schema(
       ],
       default: [],
     },
+
+    // Candidate resume (stored as an uploaded file URL)
+    resumeUrl: { type: String, default: "" },
+    resumeFileName: { type: String, default: "" },
+    resumeMime: { type: String, default: "" },
+    resumeUploadedAt: { type: Date, default: null },
     certificates: {
       type: [
         {
@@ -86,7 +92,10 @@ const UserSchema = new mongoose.Schema(
           date: { type: String, required: true },
           nftMinted: { type: Boolean, default: false },
           tokenId: { type: String },
+          // Stored path/url for uploaded certificate file (image or pdf)
           image: { type: String, default: "" },
+          fileName: { type: String, default: "" },
+          fileMime: { type: String, default: "" },
           verified: { type: Boolean, default: false },
 
           // On-chain certificate registry metadata (no PII; stores only hash + tx)

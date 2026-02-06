@@ -7,6 +7,7 @@ import {
   Briefcase,
   GraduationCap,
   Award,
+  FileText,
   Edit2,
   Plus,
   Trash2,
@@ -43,6 +44,7 @@ import {
   useAssessmentHistory,
   useRefreshMyAiScore,
 } from "@/lib/apiHooks";
+import { apiFetch } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { CompanyLogo } from "@/components/ui/company-logo";
@@ -68,9 +70,49 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, refreshMe } = useAuth();
   const didRefreshAiScore = useRef(false);
+  const resumeInputRef = useRef<HTMLInputElement | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "experience" | "education" | "skills">("overview");
   const [historySkillFilter, setHistorySkillFilter] = useState<string>("all");
+  const [resumeBusy, setResumeBusy] = useState(false);
+
+  const apiBaseUrl = useMemo(() => {
+    const raw = (import.meta as any).env?.VITE_API_URL as string | undefined;
+    return (raw || "").trim().replace(/\/$/, "");
+  }, []);
+
+  const assetUrl = (src?: string) => {
+    const s = String(src || "");
+    if (!s) return "";
+    if (s.startsWith("http://") || s.startsWith("https://")) return s;
+    if (s.startsWith("/uploads/")) return `${apiBaseUrl}${s}`;
+    return "";
+  };
+
+  const certificateKind = (cert: any): "image" | "pdf" | "none" => {
+    const mime = String(cert?.fileMime || "").toLowerCase();
+    const url = String(cert?.image || "").toLowerCase();
+    const name = String(cert?.fileName || "").toLowerCase();
+    if (mime === "application/pdf" || url.endsWith(".pdf") || name.endsWith(".pdf")) return "pdf";
+    if (mime.startsWith("image/")) return "image";
+    if (assetUrl(cert?.image)) return "image";
+    return "none";
+  };
+
+  const uploadResume = async (file: File) => {
+    setResumeBusy(true);
+    try {
+      const form = new FormData();
+      form.append("resume", file);
+      await apiFetch<{ user: any }>("/api/me/resume", { method: "POST", body: form });
+      await refreshMe();
+      toast({ title: "Resume uploaded", description: "Recruiters can now view your resume." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: e?.message || "Please try again" });
+    } finally {
+      setResumeBusy(false);
+    }
+  };
 
   const savedJobsQuery = useSavedJobs();
   const savedJobs = savedJobsQuery.data?.items ?? [];
@@ -709,6 +751,60 @@ export default function Profile() {
               </GlassCard>
             </StaggerItem>
 
+            {/* Resume */}
+            {user?.role === "candidate" ? (
+              <StaggerItem>
+                <GlassCard className="p-6">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <h3 className="font-display text-lg font-semibold">Resume</h3>
+                    <GradientButton
+                      size="sm"
+                      loading={resumeBusy}
+                      onClick={() => resumeInputRef.current?.click()}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Upload
+                    </GradientButton>
+                  </div>
+
+                  <input
+                    ref={resumeInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      void uploadResume(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+
+                  {user?.resumeUrl ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{user.resumeFileName || "Resume.pdf"}</p>
+                        <p className="text-xs text-muted-foreground">PDF</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = assetUrl(user.resumeUrl);
+                          if (url) window.open(url, "_blank", "noopener,noreferrer");
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        View
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Add your resume (PDF) so recruiters can view it.</p>
+                  )}
+                </GlassCard>
+              </StaggerItem>
+            ) : null}
+
             {/* Top Skills */}
             <StaggerItem>
               <GlassCard className="p-6">
@@ -767,7 +863,18 @@ export default function Profile() {
                       className="p-4 rounded-xl border border-border hover:border-primary/50 transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">{cert.image}</span>
+                        {certificateKind(cert) === "image" && assetUrl((cert as any).image) ? (
+                          <img
+                            src={assetUrl((cert as any).image)}
+                            alt={cert.name}
+                            className="h-10 w-10 rounded-lg object-cover border border-border"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
                         {cert.nftMinted && (
                           <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                             NFT
@@ -777,6 +884,15 @@ export default function Profile() {
                       <h4 className="font-medium text-sm">{cert.name}</h4>
                       <p className="text-xs text-muted-foreground">{cert.issuer}</p>
                       <p className="text-xs text-muted-foreground mt-1">{cert.date}</p>
+                      {assetUrl((cert as any).image) ? (
+                        <button
+                          className="mt-2 text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          onClick={() => window.open(assetUrl((cert as any).image), "_blank", "noopener,noreferrer")}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View file
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>

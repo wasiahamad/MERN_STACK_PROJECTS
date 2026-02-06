@@ -11,6 +11,8 @@ import {
   ChevronDown,
   Shield,
   Sparkles,
+  FileText,
+  Award,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -33,6 +35,18 @@ import {
   useRecruiterStats,
   useUpdateRecruiterCandidateStatus,
 } from "@/lib/apiHooks";
+
+const API_BASE_URL = String((import.meta as any).env?.VITE_API_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+
+const assetUrl = (src?: string) => {
+  const s = String(src || "");
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  if (s.startsWith("/uploads/")) return API_BASE_URL ? `${API_BASE_URL}${s}` : s;
+  return "";
+};
 
 const statusOptions = [
   { id: "all", label: "All Candidates" },
@@ -302,7 +316,7 @@ function CandidateDetailsSheet({
             <div className="flex items-start gap-3">
               <div className="h-14 w-14 rounded-xl bg-muted overflow-hidden flex items-center justify-center text-2xl shrink-0">
                 {candidate.avatar && (candidate.avatar.startsWith("http") || candidate.avatar.startsWith("/uploads")) ? (
-                  <img src={candidate.avatar} alt="Avatar" className="h-full w-full object-cover" />
+                  <img src={assetUrl(candidate.avatar) || candidate.avatar} alt="Avatar" className="h-full w-full object-cover" />
                 ) : (
                   (candidate.avatar || candidate.name?.slice(0, 1).toUpperCase() || "👤")
                 )}
@@ -364,6 +378,79 @@ function CandidateDetailsSheet({
                 ))}
               </div>
             </GlassCard>
+
+            <GlassCard hover={false} className="p-4">
+              <p className="text-sm font-medium mb-2">Resume</p>
+              {(candidate as any).resumeUrl ? (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    const url = assetUrl((candidate as any).resumeUrl);
+                    if (url) window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  <FileText className="h-4 w-4" />
+                  {(candidate as any).resumeFileName || "View resume"}
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">No resume uploaded.</p>
+              )}
+            </GlassCard>
+
+            {(candidate as any).certificates && Array.isArray((candidate as any).certificates) && (candidate as any).certificates.length ? (
+              <GlassCard hover={false} className="p-4">
+                <p className="text-sm font-medium mb-2">Certificates</p>
+                <div className="space-y-2">
+                  {((candidate as any).certificates as any[]).map((cert) => {
+                    const url = assetUrl(cert?.image);
+                    const isPdf =
+                      String(cert?.fileMime || "").toLowerCase() === "application/pdf" ||
+                      String(cert?.fileName || "")
+                        .toLowerCase()
+                        .endsWith(".pdf") ||
+                      String(cert?.image || "")
+                        .toLowerCase()
+                        .endsWith(".pdf");
+
+                    return (
+                      <div key={String(cert?.id || cert?.name)} className="p-3 rounded-lg border border-border">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Award className="h-4 w-4 text-primary shrink-0" />
+                              <p className="text-sm font-medium truncate">{cert?.name || "Certificate"}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{cert?.issuer || ""}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              {cert?.verified ? (
+                                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600">Verified</Badge>
+                              ) : null}
+                              {cert?.nftMinted ? (
+                                <Badge variant="secondary" className="bg-primary/10 text-primary">NFT</Badge>
+                              ) : null}
+                              {isPdf ? (
+                                <Badge variant="secondary" className="bg-muted text-muted-foreground">PDF</Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                          {url ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+                            >
+                              View file
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </GlassCard>
+            ) : null}
 
             <GlassCard hover={false} className="p-4 space-y-3">
               <p className="text-sm font-medium">Message candidate</p>
@@ -447,7 +534,7 @@ function CandidateCard({
   const avatarSrc = (() => {
     const a = (candidate.avatar || "").trim();
     if (!a) return "";
-    if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return a;
+    if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("/uploads")) return assetUrl(a) || a;
     return "";
   })();
 

@@ -20,6 +20,8 @@ function mapCertificate(c) {
     nftMinted: !!c.nftMinted,
     tokenId: c.tokenId || undefined,
     image: c.image,
+    fileName: c.fileName || undefined,
+    fileMime: c.fileMime || undefined,
     verified: !!c.verified,
 
     // Optional chain fields (UI can ignore)
@@ -41,7 +43,9 @@ export const createCertificate = asyncHandler(async (req, res) => {
     throw new ApiError(400, "VALIDATION", "name, issuer, date are required");
   }
 
-  const image = req.file ? `/uploads/${req.file.filename}` : "";
+  const image = req.file ? `/uploads/certificates/${req.file.filename}` : "";
+  const fileName = req.file?.originalname ? String(req.file.originalname) : "";
+  const fileMime = req.file?.mimetype ? String(req.file.mimetype) : "";
 
   req.user.certificates.push({
     name: String(name),
@@ -50,6 +54,8 @@ export const createCertificate = asyncHandler(async (req, res) => {
     nftMinted: false,
     tokenId: credentialId ? String(credentialId) : undefined,
     image,
+    fileName,
+    fileMime,
     verified: false,
   });
 

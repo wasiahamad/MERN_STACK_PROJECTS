@@ -22,7 +22,13 @@ import assessmentsRoutes from "./routes/assessments.routes.js";
 
 export const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    // Frontend runs on a different origin (e.g. :8080) and needs to embed
+    // uploaded assets served from this API origin (e.g. :5000).
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 app.use(
   cors({
     origin: env.CORS_ORIGIN,
@@ -32,7 +38,15 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
-app.use("/uploads", express.static(path.resolve("uploads")));
+app.use(
+  "/uploads",
+  express.static(path.resolve("uploads"), {
+    setHeaders(res) {
+      // Ensure browsers allow embedding these assets cross-origin.
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
 
 app.get("/health", (req, res) => {
   res.json({ data: { ok: true }, message: "Healthy" });

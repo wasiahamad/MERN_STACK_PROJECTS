@@ -54,6 +54,16 @@ export default function Certificates() {
     return "";
   };
 
+  const certificateFileKind = (cert: any): "image" | "pdf" | "none" => {
+    const mime = String(cert?.fileMime || "").toLowerCase();
+    const url = String(cert?.image || "");
+    const fileName = String(cert?.fileName || "").toLowerCase();
+    if (mime === "application/pdf" || url.toLowerCase().endsWith(".pdf") || fileName.endsWith(".pdf")) return "pdf";
+    if (mime.startsWith("image/")) return "image";
+    if (certificateImageUrl(url)) return "image";
+    return "none";
+  };
+
   const resetUploadModal = () => {
     setUploadFile(null);
     setUploadForm({ name: "", issuer: "", date: "", credentialId: "" });
@@ -231,21 +241,26 @@ export default function Certificates() {
               <GlassCard className="overflow-hidden">
                 {/* Certificate Preview */}
                 <div className="relative h-40 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                  {certificateImageUrl(String((cert as any).image || "")) ? (
-                    <img
-                      src={certificateImageUrl(String((cert as any).image || ""))}
-                      alt={cert.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="text-6xl">{(cert as any).image || "🏅"}</span>
-                  )}
+                  <div className="flex flex-col items-center justify-center text-center px-3">
+                    <div className="h-12 w-12 rounded-xl bg-muted/40 border border-border flex items-center justify-center">
+                      <FileText className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                      {certificateFileKind(cert) === "pdf" ? "PDF Certificate" : "Uploaded File"}
+                    </p>
+                  </div>
                   {cert.nftMinted && (
                     <div className="absolute top-3 right-3">
                       <Badge className="gradient-primary text-primary-foreground">
                         <Sparkles className="h-3 w-3 mr-1" />
                         NFT
+                      </Badge>
+                    </div>
+                  )}
+                  {certificateFileKind(cert) === "pdf" && (
+                    <div className="absolute bottom-3 right-3">
+                      <Badge variant="secondary" className="bg-muted/40 border-border">
+                        PDF
                       </Badge>
                     </div>
                   )}
@@ -289,6 +304,24 @@ export default function Certificates() {
                           Verify on Blockchain
                         </Button>
                       )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        asChild
+                        disabled={!certificateImageUrl(String((cert as any).image || ""))}
+                      >
+                        <a
+                          href={certificateImageUrl(String((cert as any).image || ""))}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download Uploaded File
+                        </a>
+                      </Button>
 
                       <Button
                         variant="ghost"

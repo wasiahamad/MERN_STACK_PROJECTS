@@ -47,6 +47,8 @@ function mapCertificate(c) {
     nftMinted: !!c.nftMinted,
     tokenId: c.tokenId || undefined,
     image: c.image,
+    fileName: c.fileName || undefined,
+    fileMime: c.fileMime || undefined,
     verified: !!c.verified,
 
     chainHash: c.chainHash || undefined,
@@ -77,6 +79,9 @@ function mapUser(user) {
     experience: Array.isArray(user.experience) ? user.experience.map(mapExperience) : undefined,
     education: Array.isArray(user.education) ? user.education.map(mapEducation) : undefined,
     certificates: Array.isArray(user.certificates) ? user.certificates.map(mapCertificate) : undefined,
+    resumeUrl: user.resumeUrl || undefined,
+    resumeFileName: user.resumeFileName || undefined,
+    resumeMime: user.resumeMime || undefined,
     savedJobIds: Array.isArray(user.savedJobs) ? user.savedJobs.map((x) => String(x)) : undefined,
     emailVerified: !!user.emailVerified,
   };
@@ -315,6 +320,31 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
   await req.user.save();
 
   return ok(res, { avatar: avatarUrl, user: mapUser(req.user) }, "Avatar uploaded");
+});
+
+export const uploadResume = asyncHandler(async (req, res) => {
+  requireCandidate(req.user);
+  if (!req.file) throw new ApiError(400, "VALIDATION", "resume file is required");
+
+  const resumeUrl = `/uploads/resumes/${req.file.filename}`;
+  req.user.resumeUrl = resumeUrl;
+  req.user.resumeFileName = req.file.originalname ? String(req.file.originalname) : "";
+  req.user.resumeMime = req.file.mimetype ? String(req.file.mimetype) : "";
+  req.user.resumeUploadedAt = new Date();
+
+  await applyCandidateAiScoreToUserDoc(req.user);
+  await req.user.save();
+
+  return ok(
+    res,
+    {
+      resumeUrl,
+      resumeFileName: req.user.resumeFileName || undefined,
+      resumeMime: req.user.resumeMime || undefined,
+      user: mapUser(req.user),
+    },
+    "Resume uploaded"
+  );
 });
 
 function requireCandidate(user) {
