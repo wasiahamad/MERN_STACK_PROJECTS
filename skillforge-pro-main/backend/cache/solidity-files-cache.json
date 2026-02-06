@@ -1,0 +1,77 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\DELTA-LIBRARY\\MERN_STACK_PROJECTS\\skillforge-pro-main\\backend\\contracts\\CertificateRegistry.sol": {
+      "lastModificationDate": 1770319323830,
+      "contentHash": "8132129fb32c6fd65e0d39c95c298ace",
+      "sourceName": "contracts/CertificateRegistry.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "CertificateRegistry"
+      ]
+    },
+    "C:\\DELTA-LIBRARY\\MERN_STACK_PROJECTS\\skillforge-pro-main\\backend\\contracts\\DAOGovernance.sol": {
+      "lastModificationDate": 1770319325105,
+      "contentHash": "73bcff07d038bed237b91c2b0e555b8e",
+      "sourceName": "contracts/DAOGovernance.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "DAOGovernance"
+      ]
+    }
+  }
+}

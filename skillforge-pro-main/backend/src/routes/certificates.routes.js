@@ -6,6 +6,8 @@ import {
   listMyCertificates,
   createCertificate,
   mintCertificate,
+  verifyMyCertificate,
+  verifyCertificatePublic,
 } from "../controllers/certificates.controller.js";
 
 const router = express.Router();
@@ -16,6 +18,7 @@ const upload = multer({
 });
 
 router.get("/me", requireAuth, requireVerifiedEmail, requireRole("candidate"), listMyCertificates);
+router.post("/verify", verifyCertificatePublic);
 router.post(
   "/me",
   requireAuth,
@@ -30,6 +33,14 @@ router.post(
   requireVerifiedEmail,
   requireRole("candidate"),
   mintCertificate
+);
+
+router.post(
+  "/me/:id/verify",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  verifyMyCertificate
 );
 
 export default router;

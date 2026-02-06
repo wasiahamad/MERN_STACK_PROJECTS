@@ -2,6 +2,14 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { created, ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { DAOProposal } from "../models/DAOProposal.js";
+import { User } from "../models/User.js";
+import { env } from "../config/env.js";
+import { sha256Hex } from "../utils/crypto.js";
+import {
+  createDaoProposalOnChain,
+  getDaoCountsOnChain,
+  recordDaoVoteOnChain,
+} from "../services/blockchain.service.js";
 
 function mapProposal(p) {
   return {
@@ -14,6 +22,11 @@ function mapProposal(p) {
     votesAgainst: p.votesAgainst,
     endDate: p.endDate,
     category: p.category,
+
+    chainHash: p.chainHash || undefined,
+    chainTxHash: p.chainTxHash || undefined,
+    chainContractAddress: p.chainContractAddress || undefined,
+    chainNetwork: p.chainNetwork || undefined,
   };
 }
 
@@ -41,6 +54,23 @@ export const createProposal = asyncHandler(async (req, res) => {
     status: "active",
   });
 
+  // Deterministic, PII-free hash input: proposal mongo id
+  const proposalHashHex = sha256Hex(`DAO:${String(p._id)}`);
+
+  // Optionally push proposal hash on-chain
+  if (env.BLOCKCHAIN_ENABLED) {
+    const onChain = await createDaoProposalOnChain(proposalHashHex);
+    p.chainHash = proposalHashHex;
+    p.chainTxHash = onChain.txHash;
+    p.chainContractAddress = onChain.contractAddress;
+    p.chainNetwork = onChain.network;
+    await p.save();
+  } else {
+    // Store hash for later use even if chain disabled
+    p.chainHash = proposalHashHex;
+    await p.save();
+  }
+
   return created(res, { proposal: mapProposal(p) }, "Proposal created");
 });
 
@@ -64,7 +94,54 @@ export const voteOnProposal = asyncHandler(async (req, res) => {
 
   await proposal.save();
 
+  // Record vote on-chain (backend as relayer/owner), enforcing one wallet = one vote on-chain
+  if (env.BLOCKCHAIN_ENABLED) {
+    if (!req.user.walletAddress) {
+      throw new ApiError(400, "WALLET_NOT_LINKED", "Link a wallet before voting");
+    }
+    if (!req.user.walletVerifiedAt) {
+      throw new ApiError(400, "WALLET_NOT_VERIFIED", "Verify wallet ownership before voting");
+    }
+    if (!proposal.chainHash) {
+      throw new ApiError(500, "PROPOSAL_HASH_MISSING", "Proposal chain hash missing");
+    }
+
+    await recordDaoVoteOnChain({
+      proposalHashHex: proposal.chainHash,
+      voterAddress: req.user.walletAddress,
+      support: vote === "for",
+    });
+  }
+
   return ok(res, { proposal: mapProposal(proposal) }, "Vote recorded");
+});
+
+export const syncProposalOnChain = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const proposal = await DAOProposal.findById(id);
+  if (!proposal) throw new ApiError(404, "PROPOSAL_NOT_FOUND", "Proposal not found");
+  if (!env.BLOCKCHAIN_ENABLED) {
+    throw new ApiError(503, "BLOCKCHAIN_DISABLED", "Blockchain sync is disabled");
+  }
+  if (!proposal.chainHash) {
+    throw new ApiError(400, "PROPOSAL_HASH_MISSING", "Proposal does not have an on-chain hash");
+  }
+
+  const counts = await getDaoCountsOnChain(proposal.chainHash);
+  proposal.votesFor = counts.votesFor;
+  proposal.votesAgainst = counts.votesAgainst;
+  proposal.chainContractAddress = counts.contractAddress;
+  proposal.chainNetwork = counts.network;
+  proposal.chainSyncedAt = new Date();
+
+  // Best-effort status update once endDate is passed
+  const end = new Date(String(proposal.endDate));
+  if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) {
+    proposal.status = proposal.votesFor >= proposal.votesAgainst ? "passed" : "rejected";
+  }
+
+  await proposal.save();
+  return ok(res, { proposal: mapProposal(proposal) }, "Synced");
 });
 
 export const daoMe = asyncHandler(async (req, res) => {
@@ -76,4 +153,13 @@ export const daoMe = asyncHandler(async (req, res) => {
     },
     "DAO me"
   );
+});
+
+export const daoStats = asyncHandler(async (req, res) => {
+  // Keep it simple: treat verified candidates as DAO members.
+  const members = await User.countDocuments({
+    role: "candidate",
+    emailVerified: true,
+  });
+  return ok(res, { members }, "DAO stats");
 });

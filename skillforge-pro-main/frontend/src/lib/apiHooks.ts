@@ -468,6 +468,14 @@ export function useDaoMe(enabled: boolean) {
   });
 }
 
+export function useDaoStats(enabled: boolean) {
+  return useQuery({
+    queryKey: ["dao", "stats"],
+    enabled,
+    queryFn: () => apiFetch<{ members: number }>("/api/dao/stats"),
+  });
+}
+
 export function useVoteOnProposal() {
   const qc = useQueryClient();
   return useMutation({

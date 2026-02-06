@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award,
@@ -23,21 +23,139 @@ import { Label } from "@/components/ui/label";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiClient";
 
 export default function Certificates() {
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [mintingId, setMintingId] = useState<string | null>(null);
+  const [explorerUrlByCertId, setExplorerUrlByCertId] = useState<Record<string, string>>({});
+
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadForm, setUploadForm] = useState({
+    name: "",
+    issuer: "",
+    date: "",
+    credentialId: "",
+  });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const apiBaseUrl = useMemo(() => {
+    const raw = (import.meta as any).env?.VITE_API_URL as string | undefined;
+    return (raw || "").trim().replace(/\/$/, "");
+  }, []);
+
+  const certificateImageUrl = (src: string) => {
+    const s = String(src || "");
+    if (!s) return "";
+    if (s.startsWith("http://") || s.startsWith("https://")) return s;
+    if (s.startsWith("/uploads/")) return `${apiBaseUrl}${s}`;
+    return "";
+  };
+
+  const resetUploadModal = () => {
+    setUploadFile(null);
+    setUploadForm({ name: "", issuer: "", date: "", credentialId: "" });
+  };
+
+  const handleUpload = async () => {
+    try {
+      if (!uploadForm.name.trim() || !uploadForm.issuer.trim() || !uploadForm.date.trim()) {
+        toast({
+          title: "Missing fields",
+          description: "Certificate name, issuer, and date are required.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!uploadFile) {
+        toast({
+          title: "No file selected",
+          description: "Please select a PDF, PNG, or JPG file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUploadBusy(true);
+      const form = new FormData();
+      form.append("file", uploadFile);
+      form.append("name", uploadForm.name.trim());
+      form.append("issuer", uploadForm.issuer.trim());
+      form.append("date", uploadForm.date.trim());
+      if (uploadForm.credentialId.trim()) form.append("credentialId", uploadForm.credentialId.trim());
+
+      await apiFetch<{ certificate: any }>("/api/certificates/me", { method: "POST", body: form });
+      await refreshMe();
+      setUploadModalOpen(false);
+      resetUploadModal();
+      toast({ title: "Certificate Uploaded", description: "Your certificate is pending verification." });
+    } catch (e: any) {
+      toast({
+        title: "Upload failed",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleVerifyOnChain = async (certId: string) => {
+    try {
+      const out = await apiFetch<{ verified: boolean; explorerUrl?: string; txHash?: string }>(
+        `/api/certificates/me/${certId}/verify`,
+        { method: "POST", body: {} }
+      );
+      if (out?.explorerUrl) {
+        setExplorerUrlByCertId((p) => ({ ...p, [certId]: String(out.explorerUrl) }));
+      }
+      await refreshMe();
+      toast({
+        title: out.verified ? "Verified on Blockchain" : "Not verified",
+        description: out.verified
+          ? "This certificate hash exists on-chain."
+          : "This certificate hash was not found on-chain.",
+        variant: out.verified ? undefined : "destructive",
+      });
+    } catch (e: any) {
+      toast({
+        title: "Verification failed",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleMint = async (certId: string) => {
-    setMintingId(certId);
-    // Simulate minting process
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setMintingId(null);
-    toast({
-      title: "NFT Minted Successfully! 🎉",
-      description: "Your certificate has been minted as an NFT on the blockchain.",
-    });
+    try {
+      setMintingId(certId);
+      const out = await apiFetch<{ tokenId?: string; txHash?: string; explorerUrl?: string }>(
+        `/api/certificates/me/${certId}/mint`,
+        { method: "POST", body: {} }
+      );
+
+      if (out?.explorerUrl) {
+        setExplorerUrlByCertId((prev) => ({ ...prev, [certId]: String(out.explorerUrl) }));
+      }
+
+      await refreshMe();
+      toast({
+        title: "NFT Minted Successfully!",
+        description: out?.txHash
+          ? `Transaction: ${String(out.txHash).slice(0, 10)}...`
+          : "Your certificate has been minted on the blockchain.",
+      });
+    } catch (e: any) {
+      toast({
+        title: "Unable to mint",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setMintingId(null);
+    }
   };
 
   return (
@@ -113,7 +231,16 @@ export default function Certificates() {
               <GlassCard className="overflow-hidden">
                 {/* Certificate Preview */}
                 <div className="relative h-40 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                  <span className="text-6xl">{cert.image}</span>
+                  {certificateImageUrl(String((cert as any).image || "")) ? (
+                    <img
+                      src={certificateImageUrl(String((cert as any).image || ""))}
+                      alt={cert.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="text-6xl">{(cert as any).image || "🏅"}</span>
+                  )}
                   {cert.nftMinted && (
                     <div className="absolute top-3 right-3">
                       <Badge className="gradient-primary text-primary-foreground">
@@ -150,10 +277,34 @@ export default function Certificates() {
                         <span className="text-muted-foreground">Token ID</span>
                         <span className="font-mono">{cert.tokenId}</span>
                       </div>
+
+                      {!cert.verified && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => handleVerifyOnChain(cert.id)}
+                        >
+                          <Shield className="h-4 w-4 mr-2" />
+                          Verify on Blockchain
+                        </Button>
+                      )}
+
                       <Button
                         variant="ghost"
                         size="sm"
                         className="w-full mt-2 text-primary"
+                        onClick={() => {
+                          const url = explorerUrlByCertId[cert.id];
+                          if (url) {
+                            window.open(url, "_blank", "noopener,noreferrer");
+                            return;
+                          }
+                          toast({
+                            title: "Explorer link unavailable",
+                            description: "Mint again to fetch a fresh explorer link.",
+                          });
+                        }}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         View on Blockchain
@@ -205,7 +356,10 @@ export default function Certificates() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => setUploadModalOpen(false)}
+              onClick={() => {
+                setUploadModalOpen(false);
+                resetUploadModal();
+              }}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -218,7 +372,10 @@ export default function Certificates() {
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="font-display text-xl font-semibold">Upload Certificate</h2>
                     <button
-                      onClick={() => setUploadModalOpen(false)}
+                      onClick={() => {
+                        setUploadModalOpen(false);
+                        resetUploadModal();
+                      }}
                       className="p-2 rounded-lg hover:bg-muted"
                     >
                       <X className="h-5 w-5" />
@@ -226,53 +383,102 @@ export default function Certificates() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="application/pdf,image/png,image/jpeg"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setUploadFile(f);
+                      }}
+                    />
+
+                    <div
+                      className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const f = e.dataTransfer.files?.[0] || null;
+                        if (f) setUploadFile(f);
+                      }}
+                    >
                       <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
                       <p className="font-medium">Drop your certificate here</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         or click to browse (PDF, PNG, JPG)
                       </p>
+                      {uploadFile && (
+                        <p className="text-sm mt-3 text-muted-foreground">Selected: {uploadFile.name}</p>
+                      )}
                     </div>
 
                     <div>
                       <Label htmlFor="name">Certificate Name</Label>
-                      <Input id="name" placeholder="e.g., AWS Solutions Architect" className="mt-1" />
+                      <Input
+                        id="name"
+                        placeholder="e.g., AWS Solutions Architect"
+                        className="mt-1"
+                        value={uploadForm.name}
+                        onChange={(e) => setUploadForm((p) => ({ ...p, name: e.target.value }))}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="issuer">Issuing Organization</Label>
-                      <Input id="issuer" placeholder="e.g., Amazon Web Services" className="mt-1" />
+                      <Input
+                        id="issuer"
+                        placeholder="e.g., Amazon Web Services"
+                        className="mt-1"
+                        value={uploadForm.issuer}
+                        onChange={(e) => setUploadForm((p) => ({ ...p, issuer: e.target.value }))}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="date">Issue Date</Label>
-                      <Input id="date" type="date" className="mt-1" />
+                      <Input
+                        id="date"
+                        type="date"
+                        className="mt-1"
+                        value={uploadForm.date}
+                        onChange={(e) => setUploadForm((p) => ({ ...p, date: e.target.value }))}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="credential">Credential ID (Optional)</Label>
-                      <Input id="credential" placeholder="Enter credential ID for verification" className="mt-1" />
+                      <Input
+                        id="credential"
+                        placeholder="Enter credential ID for verification"
+                        className="mt-1"
+                        value={uploadForm.credentialId}
+                        onChange={(e) => setUploadForm((p) => ({ ...p, credentialId: e.target.value }))}
+                      />
                     </div>
 
                     <div className="flex gap-3 pt-4">
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={() => setUploadModalOpen(false)}
+                        onClick={() => {
+                          setUploadModalOpen(false);
+                          resetUploadModal();
+                        }}
                       >
                         Cancel
                       </Button>
                       <GradientButton
                         className="flex-1"
-                        onClick={() => {
-                          setUploadModalOpen(false);
-                          toast({
-                            title: "Certificate Uploaded!",
-                            description: "Your certificate is pending verification.",
-                          });
-                        }}
+                        onClick={handleUpload}
+                        loading={uploadBusy}
                       >
-                        Upload & Verify
+                        {uploadBusy ? "Uploading..." : "Upload & Verify"}
                       </GradientButton>
                     </div>
                   </div>

@@ -8,6 +8,7 @@ export interface User {
   role: "candidate" | "recruiter";
   phone?: string;
   walletAddress?: string;
+  walletVerified?: boolean;
   headline?: string;
   location?: string;
   about?: string;
@@ -71,6 +72,12 @@ export interface Certificate {
   tokenId?: string;
   image: string;
   verified: boolean;
+
+  // Optional on-chain metadata (real API responses may include these)
+  chainHash?: string;
+  chainTxHash?: string;
+  chainContractAddress?: string;
+  chainNetwork?: string;
 }
 
 export interface Job {
@@ -737,7 +744,13 @@ export interface DAOProposal {
   votesFor: number;
   votesAgainst: number;
   endDate: string;
-  category: "governance" | "feature" | "moderation" | "treasury";
+  category: "governance" | "feature" | "moderation" | "treasury" | "general";
+
+  // Optional on-chain metadata
+  chainHash?: string;
+  chainTxHash?: string;
+  chainContractAddress?: string;
+  chainNetwork?: string;
 }
 
 export const mockDAOProposals: DAOProposal[] = [

@@ -14,6 +14,8 @@ const UserSchema = new mongoose.Schema(
     // Frontend profile fields
     avatar: { type: String, default: "" },
     walletAddress: { type: String, default: "" },
+    walletNonce: { type: String, default: "", select: false },
+    walletVerifiedAt: { type: Date, default: null },
     headline: { type: String, default: "" },
     location: { type: String, default: "" },
     about: { type: String, default: "" },
@@ -86,6 +88,13 @@ const UserSchema = new mongoose.Schema(
           tokenId: { type: String },
           image: { type: String, default: "" },
           verified: { type: Boolean, default: false },
+
+          // On-chain certificate registry metadata (no PII; stores only hash + tx)
+          chainHash: { type: String, default: "" },
+          chainTxHash: { type: String, default: "" },
+          chainContractAddress: { type: String, default: "" },
+          chainNetwork: { type: String, default: "" },
+          chainIssuedAt: { type: Date, default: null },
         },
       ],
       default: [],

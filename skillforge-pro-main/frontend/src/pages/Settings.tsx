@@ -29,6 +29,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { useChangePassword, useUpdateMe } from "@/lib/apiHooks";
+import { apiFetch } from "@/lib/apiClient";
 
 const tabs = [
   { id: "account", label: "Account", icon: User },
@@ -43,6 +44,7 @@ export default function Settings() {
   const updateMeMutation = useUpdateMe();
   const changePasswordMutation = useChangePassword();
   const { theme, setTheme } = useTheme();
+  const [walletBusy, setWalletBusy] = useState(false);
 
   const [accountForm, setAccountForm] = useState({
     name: "",
@@ -86,12 +88,60 @@ export default function Settings() {
 
   const busy = updateMeMutation.isPending || changePasswordMutation.isPending;
 
+  const linkWalletWithSignature = async () => {
+    try {
+      setWalletBusy(true);
+      const eth = (window as any)?.ethereum;
+      if (!eth?.request) {
+        toast({
+          title: "MetaMask not found",
+          description: "Install MetaMask (or a compatible wallet) to link your wallet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+      const address = accounts?.[0];
+      if (!address) {
+        toast({ title: "No wallet selected", description: "Please select an account in your wallet.", variant: "destructive" });
+        return;
+      }
+
+      setAccountForm((p) => ({ ...p, walletAddress: address }));
+
+      const nonceOut = await apiFetch<{ address: string; nonce: string; message: string }>(
+        `/api/me/wallet/nonce?address=${encodeURIComponent(address)}`
+      );
+
+      const signature = (await eth.request({
+        method: "personal_sign",
+        params: [nonceOut.message, address],
+      })) as string;
+
+      await apiFetch<{ walletAddress: string; walletVerified: boolean }>("/api/me/wallet/link", {
+        method: "POST",
+        body: { address, signature },
+      });
+
+      await refreshMe();
+      toast({ title: "Wallet linked", description: "Wallet ownership verified successfully." });
+    } catch (e: any) {
+      toast({
+        title: "Unable to link wallet",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setWalletBusy(false);
+    }
+  };
+
   const saveAccountAndPreferences = async () => {
     try {
       await updateMeMutation.mutateAsync({
         name: accountForm.name,
         phone: accountForm.phone,
-        walletAddress: accountForm.walletAddress,
         settings: {
           darkMode: isDark,
           language: accountForm.language,
@@ -238,6 +288,7 @@ export default function Settings() {
                         value={accountForm.walletAddress}
                         onChange={(e) => setAccountForm((p) => ({ ...p, walletAddress: e.target.value }))}
                         className="mt-1"
+                        disabled
                       />
                     </div>
                   </div>
@@ -509,20 +560,33 @@ export default function Settings() {
                         </div>
                         <div>
                           <p className="font-medium">MetaMask Wallet</p>
-                          <p className="text-sm text-muted-foreground font-mono">{user?.walletAddress}</p>
+                          <p className="text-sm text-muted-foreground font-mono">{user?.walletAddress || "Not linked"}</p>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
+                      {user?.walletAddress && user?.walletVerified ? (
+                        <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+                          Not Verified
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={linkWalletWithSignature} disabled={walletBusy}>
                         <LinkIcon className="h-4 w-4 mr-1" />
-                        Change Wallet
+                        {walletBusy ? "Linking..." : "Change Wallet"}
                       </Button>
-                      <Button variant="outline" size="sm" className="text-destructive">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => {
+                          toast({ title: "Not supported", description: "Wallet disconnect isn't available yet." });
+                        }}
+                      >
                         Disconnect
                       </Button>
                     </div>
@@ -537,9 +601,9 @@ export default function Settings() {
                         placeholder="0x..."
                       />
                       <div className="flex justify-end">
-                        <GradientButton onClick={saveAccountAndPreferences} disabled={busy}>
+                        <GradientButton onClick={linkWalletWithSignature} disabled={busy || walletBusy}>
                           <Save className="h-4 w-4" />
-                          Save Wallet
+                          {walletBusy ? "Linking..." : "Save Wallet"}
                         </GradientButton>
                       </div>
                     </div>

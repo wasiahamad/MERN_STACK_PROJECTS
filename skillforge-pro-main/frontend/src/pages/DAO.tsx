@@ -20,8 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
-import { mockDAOProposals, DAOProposal, currentUser } from "@/data/mockData";
+import { DAOProposal } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { useDaoMe, useDaoProposals, useDaoStats, useVoteOnProposal } from "@/lib/apiHooks";
+import { useAuth } from "@/context/AuthContext";
 
 const statusConfig = {
   active: { color: "bg-primary/10 text-primary border-primary/20", label: "Active" },
@@ -35,26 +37,47 @@ const categoryConfig = {
   feature: { color: "bg-accent/10 text-accent", icon: Plus },
   moderation: { color: "bg-destructive/10 text-destructive", icon: AlertCircle },
   treasury: { color: "bg-warning/10 text-warning", icon: TrendingUp },
+  general: { color: "bg-primary/10 text-primary", icon: Vote },
 };
 
 export default function DAO() {
+  const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | "active" | "passed" | "rejected" | "pending">("all");
   const [votedProposals, setVotedProposals] = useState<Record<string, "for" | "against">>({});
 
-  const filteredProposals = mockDAOProposals.filter(
-    (p) => filter === "all" || p.status === filter
-  );
+  const proposalsQuery = useDaoProposals(filter === "all" ? undefined : filter);
+  const daoMeQuery = useDaoMe(!!user);
+  const daoStatsQuery = useDaoStats(!!user);
+  const voteMutation = useVoteOnProposal();
 
-  const handleVote = (proposalId: string, vote: "for" | "against") => {
-    setVotedProposals((prev) => ({ ...prev, [proposalId]: vote }));
-    toast({
-      title: `Vote Submitted! ${vote === "for" ? "👍" : "👎"}`,
-      description: `Your vote has been recorded on the blockchain.`,
-    });
+  const items = proposalsQuery.data?.items ?? [];
+
+  const handleVote = async (proposalId: string, vote: "for" | "against") => {
+    const prevVote = votedProposals[proposalId];
+    setVotedProposals((p) => ({ ...p, [proposalId]: vote }));
+    try {
+      await voteMutation.mutateAsync({ id: proposalId, vote });
+      toast({
+        title: "Vote Submitted!",
+        description: "Your vote has been recorded.",
+      });
+    } catch (e: any) {
+      setVotedProposals((p) => {
+        const next = { ...p };
+        if (prevVote) next[proposalId] = prevVote;
+        else delete next[proposalId];
+        return next;
+      });
+      toast({
+        title: "Unable to vote",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
-  const totalVotingPower = currentUser.reputation || 0;
-  const activeProposals = mockDAOProposals.filter((p) => p.status === "active").length;
+  const totalVotingPower = daoMeQuery.data?.votingPower ?? user?.reputation ?? 0;
+  const activeProposals = items.filter((p) => p.status === "active").length;
 
   return (
     <DashboardLayout>
@@ -90,7 +113,7 @@ export default function DAO() {
             <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
               <Vote className="h-5 w-5" />
             </div>
-            <p className="text-2xl font-bold">{mockDAOProposals.length}</p>
+            <p className="text-2xl font-bold">{items.length}</p>
             <p className="text-sm text-muted-foreground">Total Proposals</p>
           </GlassCard>
           <GlassCard hover={false} className="p-4 text-center">
@@ -104,7 +127,7 @@ export default function DAO() {
             <div className="h-10 w-10 rounded-xl bg-success/10 text-success flex items-center justify-center mx-auto mb-2">
               <Users className="h-5 w-5" />
             </div>
-            <p className="text-2xl font-bold">1,234</p>
+            <p className="text-2xl font-bold">{daoStatsQuery.data?.members ?? "--"}</p>
             <p className="text-sm text-muted-foreground">DAO Members</p>
           </GlassCard>
           <GlassCard hover={false} className="p-4 text-center">
@@ -140,7 +163,13 @@ export default function DAO() {
 
         {/* Proposals List */}
         <StaggerContainer className="space-y-4">
-          {filteredProposals.map((proposal) => (
+          {proposalsQuery.isLoading && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+              <p className="text-muted-foreground">Loading proposals...</p>
+            </motion.div>
+          )}
+
+          {!proposalsQuery.isLoading && items.map((proposal) => (
             <ProposalCard
               key={proposal.id}
               proposal={proposal}
@@ -148,7 +177,7 @@ export default function DAO() {
               onVote={(vote) => handleVote(proposal.id, vote)}
             />
           ))}
-          {filteredProposals.length === 0 && (
+          {!proposalsQuery.isLoading && items.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -173,7 +202,7 @@ function ProposalCard({
   onVote: (vote: "for" | "against") => void;
 }) {
   const status = statusConfig[proposal.status];
-  const category = categoryConfig[proposal.category];
+  const category = (categoryConfig as any)[proposal.category] || categoryConfig.governance;
   const CategoryIcon = category.icon;
   const totalVotes = proposal.votesFor + proposal.votesAgainst;
   const forPercentage = totalVotes > 0 ? (proposal.votesFor / totalVotes) * 100 : 50;

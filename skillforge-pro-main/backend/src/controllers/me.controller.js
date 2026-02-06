@@ -4,9 +4,12 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ok } from "../utils/responses.js";
 import { ApiError } from "../utils/ApiError.js";
 import { RecruiterProfile } from "../models/RecruiterProfile.js";
+import { User } from "../models/User.js";
 import { uploadImageBuffer } from "../utils/cloudinary.js";
 import { Job } from "../models/Job.js";
 import { applyCandidateAiScoreToUserDoc } from "../utils/aiScore.js";
+import crypto from "crypto";
+import { ethers } from "ethers";
 
 function mapSkill(s) {
   return { name: s.name, level: s.level, verified: !!s.verified };
@@ -45,6 +48,11 @@ function mapCertificate(c) {
     tokenId: c.tokenId || undefined,
     image: c.image,
     verified: !!c.verified,
+
+    chainHash: c.chainHash || undefined,
+    chainTxHash: c.chainTxHash || undefined,
+    chainContractAddress: c.chainContractAddress || undefined,
+    chainNetwork: c.chainNetwork || undefined,
   };
 }
 
@@ -57,6 +65,7 @@ function mapUser(user) {
     role: user.role,
     phone: user.phone,
     walletAddress: user.walletAddress || undefined,
+    walletVerified: !!user.walletVerifiedAt,
     headline: user.headline || undefined,
     location: user.location || undefined,
     about: user.about || undefined,
@@ -72,6 +81,67 @@ function mapUser(user) {
     emailVerified: !!user.emailVerified,
   };
 }
+
+function walletLinkMessage({ address, nonce }) {
+  return [
+    "SkillForge Wallet Linking",
+    `Address: ${address}`,
+    `Nonce: ${nonce}`,
+    "",
+    "Sign this message to prove wallet ownership.",
+  ].join("\n");
+}
+
+export const getWalletNonce = asyncHandler(async (req, res) => {
+  const addressRaw = String(req.query.address || "").trim();
+  if (!addressRaw) throw new ApiError(400, "VALIDATION", "address query param is required");
+
+  const address = ethers.getAddress(addressRaw);
+  const nonce = crypto.randomBytes(16).toString("hex");
+
+  req.user.walletNonce = nonce;
+  await req.user.save();
+
+  return ok(res, { address, nonce, message: walletLinkMessage({ address, nonce }) }, "Wallet nonce");
+});
+
+export const linkWallet = asyncHandler(async (req, res) => {
+  const { address: addressRaw, signature } = req.body || {};
+  if (!addressRaw || !signature) {
+    throw new ApiError(400, "VALIDATION", "address and signature are required");
+  }
+
+  const address = ethers.getAddress(String(addressRaw));
+
+  // Load nonce (selected false on schema)
+  const fresh = await User.findById(req.user._id).select("+walletNonce");
+  if (!fresh) throw new ApiError(404, "USER_NOT_FOUND", "User not found");
+  if (!fresh.walletNonce) throw new ApiError(400, "WALLET_NONCE_MISSING", "Request nonce first");
+
+  const message = walletLinkMessage({ address, nonce: fresh.walletNonce });
+  const recovered = ethers.verifyMessage(message, String(signature));
+  if (ethers.getAddress(recovered) !== address) {
+    throw new ApiError(400, "INVALID_SIGNATURE", "Signature does not match address");
+  }
+
+  // Enforce one wallet per user globally
+  const existing = await User.findOne({
+    _id: { $ne: fresh._id },
+    walletAddress: address.toLowerCase(),
+  });
+  if (existing) throw new ApiError(409, "WALLET_IN_USE", "Wallet is already linked to another user");
+
+  fresh.walletAddress = address.toLowerCase();
+  fresh.walletVerifiedAt = new Date();
+  fresh.walletNonce = "";
+  await fresh.save();
+
+  // Keep req.user in sync for this request lifecycle
+  req.user.walletAddress = fresh.walletAddress;
+  req.user.walletVerifiedAt = fresh.walletVerifiedAt;
+
+  return ok(res, { walletAddress: fresh.walletAddress, walletVerified: true }, "Wallet linked");
+});
 
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
@@ -166,10 +236,14 @@ export const updateMe = asyncHandler(async (req, res) => {
     certificates,
   } = req.body || {};
 
+  // Wallet linking must be done via signature flow: /api/me/wallet/nonce + /api/me/wallet/link
+  if (walletAddress !== undefined) {
+    throw new ApiError(400, "WALLET_LINK_REQUIRED", "Use the wallet linking flow to set walletAddress");
+  }
+
   if (typeof name === "string") req.user.name = name;
   if (typeof phone === "string") req.user.phone = phone;
   if (typeof avatar === "string") req.user.avatar = avatar;
-  if (typeof walletAddress === "string") req.user.walletAddress = walletAddress;
   if (typeof headline === "string") req.user.headline = headline;
   if (typeof location === "string") req.user.location = location;
   if (typeof about === "string") req.user.about = about;

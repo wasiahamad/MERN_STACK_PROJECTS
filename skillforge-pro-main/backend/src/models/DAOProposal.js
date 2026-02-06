@@ -21,6 +21,13 @@ const DAOProposalSchema = new mongoose.Schema(
       default: [],
       select: false,
     },
+
+    // On-chain metadata (stores only hash + tx; no PII)
+    chainHash: { type: String, default: "" },
+    chainTxHash: { type: String, default: "" },
+    chainContractAddress: { type: String, default: "" },
+    chainNetwork: { type: String, default: "" },
+    chainSyncedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
