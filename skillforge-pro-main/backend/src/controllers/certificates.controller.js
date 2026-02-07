@@ -4,6 +4,27 @@ import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 import { sha256Hex } from "../utils/crypto.js";
 import { issueCertificateOnChain, verifyCertificateOnChain } from "../services/blockchain.service.js";
+import path from "path";
+
+function safeDownloadName(name, fallbackExt = "") {
+  const base = String(name || "").trim() || `file${fallbackExt}`;
+  const cleaned = base
+    .replace(/[\\/]/g, "-")
+    .replace(/[\r\n\t]/g, " ")
+    .replace(/[\"\u0000]/g, "")
+    .slice(0, 160)
+    .trim();
+  if (!fallbackExt) return cleaned || "file";
+  return cleaned.toLowerCase().endsWith(fallbackExt.toLowerCase()) ? cleaned : `${cleaned}${fallbackExt}`;
+}
+
+function filePathFromUploadsUrl(url) {
+  const u = String(url || "");
+  if (!u.startsWith("/uploads/")) return "";
+  const rel = u.slice("/uploads/".length).replace(/^[/\\]+/, "");
+  if (!rel || rel.includes("..")) return "";
+  return path.resolve("uploads", rel);
+}
 
 function explorerTxUrl(txHash) {
   const base = String(env.BLOCKCHAIN_EXPLORER_BASE_URL || "").trim();
@@ -172,4 +193,37 @@ export const verifyCertificatePublic = asyncHandler(async (req, res) => {
 
   const out = await verifyCertificateOnChain(hashHex);
   return ok(res, { verified: out.verified, network: out.network, contractAddress: out.contractAddress }, "Verified");
+});
+
+export const downloadMyCertificateFile = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const cert = req.user?.certificates?.id(id);
+  if (!cert) throw new ApiError(404, "CERT_NOT_FOUND", "Certificate not found");
+  if (!cert.image) throw new ApiError(404, "FILE_NOT_FOUND", "No uploaded file for this certificate");
+
+  const absPath = filePathFromUploadsUrl(cert.image);
+  if (!absPath) throw new ApiError(400, "INVALID_FILE_URL", "Invalid certificate file URL");
+
+  const ext = String(path.extname(absPath) || "").toLowerCase();
+  const inferredPdf =
+    ext === ".pdf" ||
+    String(cert.fileName || "").toLowerCase().endsWith(".pdf") ||
+    String(cert.image || "").toLowerCase().endsWith(".pdf");
+
+  const mime = (() => {
+    const m = String(cert.fileMime || "").trim();
+    if (m) return m;
+    if (inferredPdf) return "application/pdf";
+    return "application/octet-stream";
+  })();
+
+  const fallbackExt = mime === "application/pdf" ? ".pdf" : ext || "";
+  const downloadName = safeDownloadName(cert.fileName || cert.name || "certificate", fallbackExt);
+
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+
+  return res.sendFile(absPath, (err) => {
+    if (err) return next(new ApiError(404, "FILE_NOT_FOUND", "File not found on server"));
+  });
 });

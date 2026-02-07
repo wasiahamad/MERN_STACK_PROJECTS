@@ -15,6 +15,8 @@ import {
   updateRecruiterCandidateStatus,
   sendRecruiterMessageToCandidate,
   scheduleRecruiterInterview,
+  downloadRecruiterCandidateResume,
+  downloadRecruiterCandidateCertificateFile,
 } from "../controllers/recruiterCandidates.controller.js";
 import { listRecruiterActivity } from "../controllers/recruiterActivity.controller.js";
 import { listApplicantsForJob } from "../controllers/applications.controller.js";
@@ -144,6 +146,22 @@ router.get(
   requireVerifiedEmail,
   requireRole("recruiter"),
   listRecruiterCandidates
+);
+
+router.get(
+  "/candidates/:candidateId/resume",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  downloadRecruiterCandidateResume
+);
+
+router.get(
+  "/candidates/:candidateId/certificates/:certId/file",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("recruiter"),
+  downloadRecruiterCandidateCertificateFile
 );
 router.patch(
   "/candidates/:id",

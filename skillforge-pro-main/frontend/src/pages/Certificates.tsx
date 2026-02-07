@@ -12,6 +12,7 @@ import {
   FileText,
   Calendar,
   Building,
+  Eye,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -24,6 +25,7 @@ import { StaggerContainer, StaggerItem } from "@/components/ui/animated-containe
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/apiClient";
+import { getAuthToken } from "@/lib/apiClient";
 
 export default function Certificates() {
   const { user, refreshMe } = useAuth();
@@ -62,6 +64,100 @@ export default function Certificates() {
     if (mime.startsWith("image/")) return "image";
     if (certificateImageUrl(url)) return "image";
     return "none";
+  };
+
+  const downloadWithAuth = async (path: string, fallbackFileName: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) throw new Error("Not logged in");
+
+      const res = await fetch(`${apiBaseUrl}${path}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText || "Download failed");
+      }
+
+      const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+      const cd = String(res.headers.get("content-disposition") || "");
+      const nameFromHeader = (() => {
+        // filename*=UTF-8''... OR filename="..."
+        const m1 = cd.match(/filename\*=(?:UTF-8''|)([^;]+)/i);
+        if (m1 && m1[1]) {
+          const raw = m1[1].trim().replace(/^"|"$/g, "");
+          try {
+            return decodeURIComponent(raw);
+          } catch {
+            return raw;
+          }
+        }
+        const m2 = cd.match(/filename="([^"]+)"/i);
+        if (m2 && m2[1]) return m2[1].trim();
+        return "";
+      })();
+
+      let finalName = String(nameFromHeader || fallbackFileName || "file").trim() || "file";
+      if (contentType.includes("application/pdf") && !finalName.toLowerCase().endsWith(".pdf")) {
+        finalName = `${finalName}.pdf`;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = finalName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Download failed",
+        description: e?.message || "Please try again",
+      });
+    }
+  };
+
+  const viewPdfWithAuth = async (path: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) throw new Error("Not logged in");
+
+      const res = await fetch(`${apiBaseUrl}${path}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText || "Unable to open file");
+      }
+
+      const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/pdf")) {
+        throw new Error("This uploaded file is not a PDF");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      // Best-effort cleanup after some time; tab might still be reading it.
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Unable to open PDF",
+        description: e?.message || "Please try again",
+      });
+    }
   };
 
   const resetUploadModal = () => {
@@ -309,19 +405,30 @@ export default function Certificates() {
                         variant="outline"
                         size="sm"
                         className="w-full mt-2"
-                        asChild
-                        disabled={!certificateImageUrl(String((cert as any).image || ""))}
+                        disabled={!String((cert as any).image || "")}
+                        onClick={() => {
+                          const isPdf = certificateFileKind(cert) === "pdf";
+                          const fallback = isPdf ? `${cert.name || "certificate"}.pdf` : `${cert.name || "certificate"}`;
+                          const name = String((cert as any).fileName || "").trim() || fallback;
+                          void downloadWithAuth(`/api/certificates/me/${cert.id}/file`, name);
+                        }}
                       >
-                        <a
-                          href={certificateImageUrl(String((cert as any).image || ""))}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Download Uploaded File
-                        </a>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Uploaded File
                       </Button>
+
+                      {certificateFileKind(cert) === "pdf" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          disabled={!String((cert as any).image || "")}
+                          onClick={() => void viewPdfWithAuth(`/api/certificates/me/${cert.id}/file`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View PDF
+                        </Button>
+                      ) : null}
 
                       <Button
                         variant="ghost"

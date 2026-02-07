@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Candidate } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { getAuthToken } from "@/lib/apiClient";
 import {
   useRecruiterCandidates,
   useRecruiterMessageCandidate,
@@ -47,6 +48,56 @@ const assetUrl = (src?: string) => {
   if (s.startsWith("/uploads/")) return API_BASE_URL ? `${API_BASE_URL}${s}` : s;
   return "";
 };
+
+async function downloadWithAuth(path: string, fallbackFileName: string) {
+  const base = API_BASE_URL;
+  const token = getAuthToken();
+  if (!token) throw new Error("Not logged in");
+
+  const res = await fetch(`${base}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText || "Download failed");
+  }
+
+  const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+  const cd = String(res.headers.get("content-disposition") || "");
+  const nameFromHeader = (() => {
+    const m1 = cd.match(/filename\*=(?:UTF-8''|)([^;]+)/i);
+    if (m1 && m1[1]) {
+      const raw = m1[1].trim().replace(/^"|"$/g, "");
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return raw;
+      }
+    }
+    const m2 = cd.match(/filename="([^"]+)"/i);
+    if (m2 && m2[1]) return m2[1].trim();
+    return "";
+  })();
+
+  let finalName = String(nameFromHeader || fallbackFileName || "file").trim() || "file";
+  if (contentType.includes("application/pdf") && !finalName.toLowerCase().endsWith(".pdf")) {
+    finalName = `${finalName}.pdf`;
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = finalName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 const statusOptions = [
   { id: "all", label: "All Candidates" },
@@ -385,9 +436,13 @@ function CandidateDetailsSheet({
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2"
-                  onClick={() => {
-                    const url = assetUrl((candidate as any).resumeUrl);
-                    if (url) window.open(url, "_blank", "noopener,noreferrer");
+                  onClick={async () => {
+                    try {
+                      const name = String((candidate as any).resumeFileName || "resume.pdf");
+                      await downloadWithAuth(`/api/recruiter/candidates/${candidate.id}/resume`, name);
+                    } catch (e: any) {
+                      toast({ variant: "destructive", title: "Download failed", description: e?.message || "Please try again" });
+                    }
                   }}
                 >
                   <FileText className="h-4 w-4" />
@@ -439,7 +494,33 @@ function CandidateDetailsSheet({
                               variant="outline"
                               size="sm"
                               className="shrink-0"
-                              onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+                              onClick={async () => {
+                                try {
+                                  const isPdf =
+                                    String(cert?.fileMime || "").toLowerCase() === "application/pdf" ||
+                                    String(cert?.fileName || "")
+                                      .toLowerCase()
+                                      .endsWith(".pdf") ||
+                                    String(cert?.image || "")
+                                      .toLowerCase()
+                                      .endsWith(".pdf");
+                                  const fallback = isPdf
+                                    ? `${String(cert?.name || "certificate")}.pdf`
+                                    : `${String(cert?.name || "certificate")}`;
+                                  const name = String(cert?.fileName || "").trim() || fallback;
+
+                                  await downloadWithAuth(
+                                    `/api/recruiter/candidates/${candidate.id}/certificates/${String(cert?.id)}/file`,
+                                    name
+                                  );
+                                } catch (e: any) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Download failed",
+                                    description: e?.message || "Please try again",
+                                  });
+                                }
+                              }}
                             >
                               View file
                             </Button>

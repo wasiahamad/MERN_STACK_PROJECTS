@@ -7,6 +7,32 @@ import { Job } from "../models/Job.js";
 import { Notification } from "../models/Notification.js";
 import { SkillAssessmentAttempt } from "../models/SkillAssessmentAttempt.js";
 import { computeSkillMatch, normalizeSkillKey } from "../utils/skillMatching.js";
+import path from "path";
+
+function safeDownloadName(name, fallbackExt = "") {
+  const base = String(name || "").trim() || `file${fallbackExt}`;
+  const cleaned = base
+    .replace(/[\\/]/g, "-")
+    .replace(/[\r\n\t]/g, " ")
+    .replace(/[\"\u0000]/g, "")
+    .slice(0, 160)
+    .trim();
+  if (!fallbackExt) return cleaned || "file";
+  return cleaned.toLowerCase().endsWith(fallbackExt.toLowerCase()) ? cleaned : `${cleaned}${fallbackExt}`;
+}
+
+function filePathFromUploadsUrl(url) {
+  const u = String(url || "");
+  if (!u.startsWith("/uploads/")) return "";
+  const rel = u.slice("/uploads/".length).replace(/^[/\\]+/, "");
+  if (!rel || rel.includes("..")) return "";
+  return path.resolve("uploads", rel);
+}
+
+async function assertRecruiterCanAccessCandidate(req, candidateId) {
+  const app = await Application.findOne({ recruiterId: req.user._id, candidateId: String(candidateId) }).select({ _id: 1 });
+  if (!app) throw new ApiError(403, "FORBIDDEN", "Not allowed to access this candidate's files");
+}
 
 function toYyyyMmDd(date) {
   try {
@@ -272,6 +298,74 @@ export const scheduleRecruiterInterview = asyncHandler(async (req, res) => {
   });
 
   return ok(res, { ok: true, status: recruiterStatusFromApplication(app.status) }, "Interview scheduled");
+});
+
+export const downloadRecruiterCandidateResume = asyncHandler(async (req, res, next) => {
+  const { candidateId } = req.params;
+  await assertRecruiterCanAccessCandidate(req, candidateId);
+
+  const u = await User.findById(candidateId).select({ resumeUrl: 1, resumeFileName: 1, resumeMime: 1, name: 1, email: 1 });
+  if (!u) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found");
+  if (!u.resumeUrl) throw new ApiError(404, "FILE_NOT_FOUND", "No resume uploaded");
+
+  const absPath = filePathFromUploadsUrl(u.resumeUrl);
+  if (!absPath) throw new ApiError(400, "INVALID_FILE_URL", "Invalid resume file URL");
+
+  const ext = String(path.extname(absPath) || "").toLowerCase();
+  const inferredPdf = ext === ".pdf" || String(u.resumeFileName || "").toLowerCase().endsWith(".pdf");
+  const mime = (() => {
+    const m = String(u.resumeMime || "").trim();
+    if (m) return m;
+    if (inferredPdf) return "application/pdf";
+    return "application/octet-stream";
+  })();
+  const fallbackExt = mime === "application/pdf" ? ".pdf" : ext || "";
+  const baseName = u.resumeFileName || `${u.name || u.email || "candidate"}-resume`;
+  const downloadName = safeDownloadName(baseName, fallbackExt);
+
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+
+  return res.sendFile(absPath, (err) => {
+    if (err) return next(new ApiError(404, "FILE_NOT_FOUND", "File not found on server"));
+  });
+});
+
+export const downloadRecruiterCandidateCertificateFile = asyncHandler(async (req, res, next) => {
+  const { candidateId, certId } = req.params;
+  await assertRecruiterCanAccessCandidate(req, candidateId);
+
+  const u = await User.findById(candidateId).select({ certificates: 1, name: 1, email: 1 });
+  if (!u) throw new ApiError(404, "CANDIDATE_NOT_FOUND", "Candidate not found");
+
+  const cert = u.certificates?.id(certId);
+  if (!cert) throw new ApiError(404, "CERT_NOT_FOUND", "Certificate not found");
+  if (!cert.image) throw new ApiError(404, "FILE_NOT_FOUND", "No uploaded file for this certificate");
+
+  const absPath = filePathFromUploadsUrl(cert.image);
+  if (!absPath) throw new ApiError(400, "INVALID_FILE_URL", "Invalid certificate file URL");
+
+  const ext = String(path.extname(absPath) || "").toLowerCase();
+  const inferredPdf =
+    ext === ".pdf" ||
+    String(cert.fileName || "").toLowerCase().endsWith(".pdf") ||
+    String(cert.image || "").toLowerCase().endsWith(".pdf");
+  const mime = (() => {
+    const m = String(cert.fileMime || "").trim();
+    if (m) return m;
+    if (inferredPdf) return "application/pdf";
+    return "application/octet-stream";
+  })();
+  const fallbackExt = mime === "application/pdf" ? ".pdf" : ext || "";
+  const baseName = cert.fileName || cert.name || `${u.name || u.email || "candidate"}-certificate`;
+  const downloadName = safeDownloadName(baseName, fallbackExt);
+
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+
+  return res.sendFile(absPath, (err) => {
+    if (err) return next(new ApiError(404, "FILE_NOT_FOUND", "File not found on server"));
+  });
 });
 
 export const updateRecruiterCandidateStatus = asyncHandler(async (req, res) => {

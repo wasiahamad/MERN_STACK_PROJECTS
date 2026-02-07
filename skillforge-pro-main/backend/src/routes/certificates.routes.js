@@ -10,6 +10,7 @@ import {
   mintCertificate,
   verifyMyCertificate,
   verifyCertificatePublic,
+  downloadMyCertificateFile,
 } from "../controllers/certificates.controller.js";
 
 const router = express.Router();
@@ -60,6 +61,14 @@ router.post(
   requireVerifiedEmail,
   requireRole("candidate"),
   verifyMyCertificate
+);
+
+router.get(
+  "/me/:id/file",
+  requireAuth,
+  requireVerifiedEmail,
+  requireRole("candidate"),
+  downloadMyCertificateFile
 );
 
 export default router;
