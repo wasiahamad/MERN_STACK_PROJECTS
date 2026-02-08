@@ -141,7 +141,7 @@ export default function DAO() {
               Participate in platform decisions and earn reputation
             </p>
           </div>
-          <GradientButton>
+          <GradientButton onClick={() => setCreateOpen((v) => !v)}>
             <Plus className="h-4 w-4" />
             Create Proposal
           </GradientButton>
