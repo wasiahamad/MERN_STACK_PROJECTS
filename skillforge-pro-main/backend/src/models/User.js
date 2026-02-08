@@ -84,6 +84,18 @@ const UserSchema = new mongoose.Schema(
     resumeFileName: { type: String, default: "" },
     resumeMime: { type: String, default: "" },
     resumeUploadedAt: { type: Date, default: null },
+
+    // Resume-derived profile signals (NOT verified skills)
+    resumeParsed: {
+      textHash: { type: String, default: "" },
+      provider: { type: String, default: "" }, // "openrouter" | "openai" | "heuristic"
+      analyzedAt: { type: Date, default: null },
+      skills: { type: [String], default: [] },
+      skillKeys: { type: [String], default: [] },
+      headlineHint: { type: String, default: "" },
+      locationHint: { type: String, default: "" },
+      summary: { type: String, default: "" },
+    },
     certificates: {
       type: [
         {
