@@ -749,11 +749,15 @@ export interface DAOProposal {
   title: string;
   description: string;
   proposer: string;
+  proposerUserId?: string;
   status: "active" | "passed" | "rejected" | "pending";
   votesFor: number;
   votesAgainst: number;
   endDate: string;
   category: "governance" | "feature" | "moderation" | "treasury" | "general";
+
+  // Optional auth-derived flags (real API responses may include these)
+  canManage?: boolean;
 
   // Optional on-chain metadata
   chainHash?: string;

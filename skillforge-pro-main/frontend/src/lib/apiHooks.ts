@@ -500,6 +500,41 @@ export function useVoteOnProposal() {
   });
 }
 
+export function useUpdateDaoProposal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string; body: { title?: string; description?: string; category?: string; endDate?: string } }) =>
+      apiFetch<{ proposal: DAOProposal }>(`/api/dao/proposals/${params.id}`, { method: "PATCH", body: params.body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dao", "proposals"] });
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "dao" && q.queryKey[1] === "proposals" });
+    },
+  });
+}
+
+export function useDeleteDaoProposal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string }) => apiFetch<{ ok: true }>(`/api/dao/proposals/${params.id}`, { method: "DELETE", body: {} }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dao", "proposals"] });
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "dao" && q.queryKey[1] === "proposals" });
+    },
+  });
+}
+
+export function useSetDaoProposalStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string; status: "active" | "passed" | "rejected" }) =>
+      apiFetch<{ proposal: DAOProposal }>(`/api/dao/proposals/${params.id}/status`, { method: "POST", body: { status: params.status } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dao", "proposals"] });
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "dao" && q.queryKey[1] === "proposals" });
+    },
+  });
+}
+
 export function useContactMessage() {
   return useMutation({
     mutationFn: (body: { name: string; email: string; subject: string; message: string }) =>

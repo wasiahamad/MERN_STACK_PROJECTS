@@ -25,8 +25,18 @@ import { Label } from "@/components/ui/label";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import { DAOProposal } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
-import { useCreateDaoProposal, useDaoMe, useDaoProposals, useDaoStats, useVoteOnProposal } from "@/lib/apiHooks";
+import {
+  useCreateDaoProposal,
+  useDaoMe,
+  useDaoProposals,
+  useDaoStats,
+  useDeleteDaoProposal,
+  useSetDaoProposalStatus,
+  useUpdateDaoProposal,
+  useVoteOnProposal,
+} from "@/lib/apiHooks";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiClient";
 
 const statusConfig = {
   active: { color: "bg-primary/10 text-primary border-primary/20", label: "Active" },
@@ -44,11 +54,12 @@ const categoryConfig = {
 };
 
 export default function DAO() {
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const [filter, setFilter] = useState<"all" | "active" | "passed" | "rejected" | "pending">("all");
   const [votedProposals, setVotedProposals] = useState<Record<string, "for" | "against">>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
+  const [walletBusy, setWalletBusy] = useState(false);
   const [draft, setDraft] = useState({
     title: "",
     description: "",
@@ -61,6 +72,49 @@ export default function DAO() {
   const daoStatsQuery = useDaoStats(!!user);
   const voteMutation = useVoteOnProposal();
   const createMutation = useCreateDaoProposal();
+  const linkWalletWithSignature = async () => {
+    try {
+      setWalletBusy(true);
+      const eth = (window as any)?.ethereum;
+      if (!eth?.request) {
+        toast({
+          title: "MetaMask not found",
+          description: "Install MetaMask (or a compatible wallet) to link your wallet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+      const address = accounts?.[0];
+      if (!address) {
+        toast({ title: "No wallet selected", description: "Please select an account in your wallet.", variant: "destructive" });
+        return;
+      }
+
+      const nonceOut = await apiFetch<{ address: string; nonce: string; message: string }>(
+        `/api/me/wallet/nonce?address=${encodeURIComponent(address)}`
+      );
+
+      const signature = (await eth.request({
+        method: "personal_sign",
+        params: [nonceOut.message, address],
+      })) as string;
+
+      await apiFetch<{ walletAddress: string; walletVerified: boolean }>("/api/me/wallet/link", {
+        method: "POST",
+        body: { address, signature },
+      });
+
+      await refreshMe();
+      toast({ title: "Wallet linked", description: "Wallet ownership verified successfully." });
+    } catch (e: any) {
+      toast({ title: "Unable to link wallet", description: e?.message || "Please try again", variant: "destructive" });
+    } finally {
+      setWalletBusy(false);
+    }
+  };
+
 
   const items = proposalsQuery.data?.items ?? [];
 
@@ -141,10 +195,17 @@ export default function DAO() {
               Participate in platform decisions and earn reputation
             </p>
           </div>
-          <GradientButton onClick={() => setCreateOpen((v) => !v)}>
-            <Plus className="h-4 w-4" />
-            Create Proposal
-          </GradientButton>
+          <div className="flex items-center gap-2">
+            {user && (!user.walletAddress || !user.walletVerified) && (
+              <Button variant="outline" onClick={linkWalletWithSignature} disabled={walletBusy}>
+                {walletBusy ? "Linking..." : "Link Wallet"}
+              </Button>
+            )}
+            <GradientButton onClick={() => setCreateOpen((v) => !v)}>
+              <Plus className="h-4 w-4" />
+              Create Proposal
+            </GradientButton>
+          </div>
         </motion.div>
 
         {createOpen && (
@@ -312,11 +373,74 @@ function ProposalCard({
   userVote?: "for" | "against";
   onVote: (vote: "for" | "against") => void;
 }) {
+  const updateMutation = useUpdateDaoProposal();
+  const deleteMutation = useDeleteDaoProposal();
+  const statusMutation = useSetDaoProposalStatus();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editDraft, setEditDraft] = useState({
+    title: proposal.title,
+    description: proposal.description,
+    category: proposal.category,
+    endDate: proposal.endDate,
+  });
+
   const status = statusConfig[proposal.status];
   const category = (categoryConfig as any)[proposal.category] || categoryConfig.governance;
   const CategoryIcon = category.icon;
   const totalVotes = proposal.votesFor + proposal.votesAgainst;
   const forPercentage = totalVotes > 0 ? (proposal.votesFor / totalVotes) * 100 : 50;
+
+  const canManage = !!proposal.canManage;
+
+  const saveEdits = async () => {
+    const title = editDraft.title.trim();
+    const description = editDraft.description.trim();
+    const category = String(editDraft.category || "general").trim() || "general";
+    const endDate = String(editDraft.endDate || "").trim();
+
+    if (title.length < 3) {
+      toast({ variant: "destructive", title: "Validation", description: "Title must be at least 3 characters." });
+      return;
+    }
+    if (description.length < 10) {
+      toast({ variant: "destructive", title: "Validation", description: "Description must be at least 10 characters." });
+      return;
+    }
+    if (!endDate) {
+      toast({ variant: "destructive", title: "Validation", description: "End date is required." });
+      return;
+    }
+
+    setEditBusy(true);
+    try {
+      await updateMutation.mutateAsync({ id: proposal.id, body: { title, description, category, endDate } });
+      toast({ title: "Updated", description: "Proposal updated successfully." });
+      setEditOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update failed", description: e?.message || "Please try again" });
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const deleteProposal = async () => {
+    try {
+      await deleteMutation.mutateAsync({ id: proposal.id });
+      toast({ title: "Deleted", description: "Proposal deleted." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Delete failed", description: e?.message || "Please try again" });
+    }
+  };
+
+  const setStatus = async (next: "active" | "passed" | "rejected") => {
+    try {
+      await statusMutation.mutateAsync({ id: proposal.id, status: next });
+      toast({ title: "Status updated", description: `Proposal marked as ${next}.` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Status update failed", description: e?.message || "Please try again" });
+    }
+  };
 
   return (
     <StaggerItem>
@@ -332,15 +456,86 @@ function ProposalCard({
               <Badge variant="outline" className={status.color}>
                 {status.label}
               </Badge>
+              {canManage && (
+                <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+                  Manage
+                </Badge>
+              )}
             </div>
 
-            <h3 className="font-display text-lg font-semibold mb-2">{proposal.title}</h3>
-            <p className="text-muted-foreground text-sm mb-4">{proposal.description}</p>
+            {!editOpen ? (
+              <>
+                <h3 className="font-display text-lg font-semibold mb-2">{proposal.title}</h3>
+                <p className="text-muted-foreground text-sm mb-4">{proposal.description}</p>
+              </>
+            ) : (
+              <div className="space-y-3 mb-4">
+                <div>
+                  <Label>Title</Label>
+                  <Input value={editDraft.title} onChange={(e) => setEditDraft((p) => ({ ...p, title: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>End date</Label>
+                  <Input
+                    type="date"
+                    value={editDraft.endDate}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, endDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={editDraft.description}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, description: e.target.value }))}
+                    rows={4}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditDraft({
+                        title: proposal.title,
+                        description: proposal.description,
+                        category: proposal.category,
+                        endDate: proposal.endDate,
+                      });
+                      setEditOpen(false);
+                    }}
+                    disabled={editBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <GradientButton onClick={saveEdits} disabled={editBusy}>
+                    {editBusy ? "Saving..." : "Save"}
+                  </GradientButton>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span>Proposed by: {proposal.proposer}</span>
               <span>Ends: {proposal.endDate}</span>
             </div>
+
+            {canManage && !editOpen && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} disabled={proposal.status !== "active"}>
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" onClick={deleteProposal}>
+                  Delete
+                </Button>
+                {proposal.status === "active" ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setStatus("passed")}>Mark Passed</Button>
+                    <Button variant="outline" size="sm" onClick={() => setStatus("rejected")}>Mark Rejected</Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setStatus("active")}>Reopen</Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Voting Section */}
