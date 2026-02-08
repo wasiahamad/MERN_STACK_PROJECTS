@@ -55,7 +55,7 @@ const categoryConfig = {
 
 export default function DAO() {
   const { user, refreshMe } = useAuth();
-  const [filter, setFilter] = useState<"all" | "active" | "passed" | "rejected" | "pending">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "passed" | "rejected">("all");
   const [votedProposals, setVotedProposals] = useState<Record<string, "for" | "against">>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -318,7 +318,7 @@ export default function DAO() {
           transition={{ delay: 0.2 }}
           className="flex flex-wrap gap-2"
         >
-          {["all", "active", "passed", "rejected", "pending"].map((status) => (
+          {["all", "active", "passed", "rejected"].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status as any)}
