@@ -205,7 +205,9 @@ export const listRecommendedJobs = asyncHandler(async (req, res) => {
   // - Prefer jobs where candidate AI score meets threshold
   // - Prefer jobs that overlap skills
   const user = req.user;
-  const candidateSkills = Array.isArray(user?.skills) ? user.skills.map((s) => String(s.name)) : [];
+  const manualSkills = Array.isArray(user?.skills) ? user.skills.map((s) => String(s.name)) : [];
+  const resumeSkills = Array.isArray(user?.resumeParsed?.skills) ? user.resumeParsed.skills.map((s) => String(s)) : [];
+  const candidateSkills = Array.from(new Set([...manualSkills, ...resumeSkills]));
   const aiScore = typeof user?.aiScore === "number" ? user.aiScore : null;
 
   const jobs = await Job.find({ status: "active" }).sort({ createdAt: -1 }).limit(100);

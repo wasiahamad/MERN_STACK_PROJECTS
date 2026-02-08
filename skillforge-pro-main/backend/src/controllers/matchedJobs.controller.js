@@ -57,8 +57,11 @@ export const listMatchedJobs = asyncHandler(async (req, res) => {
     legacySkills: req.user.skills,
   });
 
-  // If candidate has no verified skills, they can't match anything.
-  if (verifiedSkillKeys.size === 0) {
+  const resumeKeys = Array.isArray(req.user?.resumeParsed?.skillKeys) ? req.user.resumeParsed.skillKeys : [];
+  const combinedSkillKeys = new Set([...(verifiedSkillKeys || []), ...resumeKeys]);
+
+  // If candidate has no signals (verified skills OR resume-derived skills), they can't match anything.
+  if (combinedSkillKeys.size === 0) {
     return ok(res, { items: [], total: 0, page: p, pageSize: ps, minScore: threshold }, "Matched jobs");
   }
 
@@ -67,7 +70,7 @@ export const listMatchedJobs = asyncHandler(async (req, res) => {
 
   const scored = jobs
     .map((job) => {
-      const match = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys });
+      const match = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys: combinedSkillKeys });
       return {
         job: mapJobList(job),
         matchScore: match.matchScore,

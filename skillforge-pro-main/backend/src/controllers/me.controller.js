@@ -10,6 +10,8 @@ import { Job } from "../models/Job.js";
 import { applyCandidateAiScoreToUserDoc } from "../utils/aiScore.js";
 import crypto from "crypto";
 import { ethers } from "ethers";
+import { extractPdfTextFromFile } from "../services/resumeText.service.js";
+import { analyzeResumeText } from "../services/resumeAnalysis.service.js";
 
 function mapSkill(s) {
   return { name: s.name, level: s.level, verified: !!s.verified };
@@ -82,6 +84,17 @@ function mapUser(user) {
     resumeUrl: user.resumeUrl || undefined,
     resumeFileName: user.resumeFileName || undefined,
     resumeMime: user.resumeMime || undefined,
+    resumeParsed:
+      user.resumeParsed && (user.resumeParsed.skills?.length || user.resumeParsed.skillKeys?.length || user.resumeParsed.analyzedAt)
+        ? {
+            provider: user.resumeParsed.provider || undefined,
+            analyzedAt: user.resumeParsed.analyzedAt || undefined,
+            skills: Array.isArray(user.resumeParsed.skills) ? user.resumeParsed.skills : undefined,
+            headlineHint: user.resumeParsed.headlineHint || undefined,
+            locationHint: user.resumeParsed.locationHint || undefined,
+            summary: user.resumeParsed.summary || undefined,
+          }
+        : undefined,
     savedJobIds: Array.isArray(user.savedJobs) ? user.savedJobs.map((x) => String(x)) : undefined,
     emailVerified: !!user.emailVerified,
   };
@@ -331,6 +344,32 @@ export const uploadResume = asyncHandler(async (req, res) => {
   req.user.resumeFileName = req.file.originalname ? String(req.file.originalname) : "";
   req.user.resumeMime = req.file.mimetype ? String(req.file.mimetype) : "";
   req.user.resumeUploadedAt = new Date();
+
+  // Best-effort: parse + analyze the resume to derive skill hints for matching.
+  // Do NOT fail the upload if analysis fails.
+  try {
+    const filePath = req.file.path ? String(req.file.path) : "";
+    if (filePath) {
+      const { text, textHash } = await extractPdfTextFromFile(filePath);
+      if (text && textHash && req.user.resumeParsed?.textHash !== textHash) {
+        const analysis = await analyzeResumeText({ text });
+
+        req.user.resumeParsed = {
+          ...(req.user.resumeParsed || {}),
+          textHash,
+          provider: analysis.provider,
+          analyzedAt: new Date(),
+          skills: analysis.skills,
+          skillKeys: analysis.skillKeys,
+          headlineHint: analysis.headlineHint || "",
+          locationHint: analysis.locationHint || "",
+          summary: analysis.summary || "",
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
 
   await applyCandidateAiScoreToUserDoc(req.user);
   await req.user.save();

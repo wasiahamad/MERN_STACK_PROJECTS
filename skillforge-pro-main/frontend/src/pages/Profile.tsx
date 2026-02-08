@@ -104,9 +104,21 @@ export default function Profile() {
     try {
       const form = new FormData();
       form.append("resume", file);
-      await apiFetch<{ user: any }>("/api/me/resume", { method: "POST", body: form });
+      const resp = await apiFetch<{ user?: any }>("/api/me/resume", { method: "POST", body: form });
       await refreshMe();
-      toast({ title: "Resume uploaded", description: "Recruiters can now view your resume." });
+
+      const analyzed = Boolean(
+        resp?.user?.resumeParsed?.provider ||
+          (resp?.user?.resumeParsed?.skills?.length ?? 0) > 0 ||
+          resp?.user?.resumeParsed?.analyzedAt
+      );
+
+      toast({
+        title: "Resume uploaded",
+        description: analyzed ? "Resume analyzed. Opening matched jobs." : "Opening matched jobs.",
+      });
+
+      navigate("/dashboard/matched-jobs");
     } catch (e: any) {
       toast({ variant: "destructive", title: "Upload failed", description: e?.message || "Please try again" });
     } finally {
