@@ -460,6 +460,19 @@ export function useDaoProposals(status?: string) {
   });
 }
 
+export function useCreateDaoProposal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title: string; description: string; category?: string; endDate: string }) =>
+      apiFetch<{ proposal: DAOProposal }>("/api/dao/proposals", { method: "POST", body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dao", "proposals"] });
+      // also refresh all status-filtered caches
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "dao" && q.queryKey[1] === "proposals" });
+    },
+  });
+}
+
 export function useDaoMe(enabled: boolean) {
   return useQuery({
     queryKey: ["dao", "me"],

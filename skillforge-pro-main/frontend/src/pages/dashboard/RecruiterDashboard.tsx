@@ -302,7 +302,7 @@ export default function RecruiterDashboard() {
                               <p className="text-xs text-muted-foreground truncate">{candidate.title}</p>
                             </div>
                             <div className="text-right">
-                              <Badge className="gradient-primary text-primary-foreground">{candidate.matchScore ?? 0}%</Badge>
+                              <Badge className="gradient-primary text-primary-foreground">{(candidate as any).profileMatchScore ?? candidate.matchScore ?? 0}%</Badge>
                               <p className="text-xs text-muted-foreground mt-1">AI: {candidate.aiScore ?? 0}</p>
                             </div>
                           </div>

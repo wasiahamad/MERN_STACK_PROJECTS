@@ -19,10 +19,13 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
 import { DAOProposal } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
-import { useDaoMe, useDaoProposals, useDaoStats, useVoteOnProposal } from "@/lib/apiHooks";
+import { useCreateDaoProposal, useDaoMe, useDaoProposals, useDaoStats, useVoteOnProposal } from "@/lib/apiHooks";
 import { useAuth } from "@/context/AuthContext";
 
 const statusConfig = {
@@ -44,11 +47,20 @@ export default function DAO() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | "active" | "passed" | "rejected" | "pending">("all");
   const [votedProposals, setVotedProposals] = useState<Record<string, "for" | "against">>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [draft, setDraft] = useState({
+    title: "",
+    description: "",
+    category: "general",
+    endDate: "",
+  });
 
   const proposalsQuery = useDaoProposals(filter === "all" ? undefined : filter);
   const daoMeQuery = useDaoMe(!!user);
   const daoStatsQuery = useDaoStats(!!user);
   const voteMutation = useVoteOnProposal();
+  const createMutation = useCreateDaoProposal();
 
   const items = proposalsQuery.data?.items ?? [];
 
@@ -79,6 +91,39 @@ export default function DAO() {
   const totalVotingPower = daoMeQuery.data?.votingPower ?? user?.reputation ?? 0;
   const activeProposals = items.filter((p) => p.status === "active").length;
 
+  const submitCreateProposal = async () => {
+    const title = draft.title.trim();
+    const description = draft.description.trim();
+    const category = draft.category.trim() || "general";
+    const endDate = draft.endDate.trim();
+
+    if (title.length < 3) {
+      toast({ variant: "destructive", title: "Validation", description: "Title must be at least 3 characters." });
+      return;
+    }
+    if (description.length < 10) {
+      toast({ variant: "destructive", title: "Validation", description: "Description must be at least 10 characters." });
+      return;
+    }
+    if (!endDate) {
+      toast({ variant: "destructive", title: "Validation", description: "End date is required." });
+      return;
+    }
+
+    setCreateBusy(true);
+    try {
+      await createMutation.mutateAsync({ title, description, category, endDate });
+      toast({ title: "Proposal created", description: "Your proposal is now live for voting." });
+      setDraft({ title: "", description: "", category: "general", endDate: "" });
+      setCreateOpen(false);
+      setFilter("active");
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Create failed", description: e?.message || "Please try again" });
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -101,6 +146,72 @@ export default function DAO() {
             Create Proposal
           </GradientButton>
         </motion.div>
+
+        {createOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <GlassCard hover={false} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Label>Title</Label>
+                  <Input
+                    value={draft.title}
+                    onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
+                    placeholder="Proposal title"
+                  />
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <select
+                    className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    value={draft.category}
+                    onChange={(e) => setDraft((p) => ({ ...p, category: e.target.value }))}
+                  >
+                    <option value="general">general</option>
+                    <option value="governance">governance</option>
+                    <option value="feature">feature</option>
+                    <option value="moderation">moderation</option>
+                    <option value="treasury">treasury</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>End date</Label>
+                  <Input
+                    type="date"
+                    value={draft.endDate}
+                    onChange={(e) => setDraft((p) => ({ ...p, endDate: e.target.value }))}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={draft.description}
+                    onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="Explain the proposal clearly"
+                    rows={5}
+                  />
+                </div>
+                <div className="md:col-span-2 flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCreateOpen(false);
+                    }}
+                    disabled={createBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <GradientButton onClick={submitCreateProposal} disabled={createBusy}>
+                    {createBusy ? "Creating..." : "Create"}
+                  </GradientButton>
+                </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        )}
 
         {/* Stats */}
         <motion.div

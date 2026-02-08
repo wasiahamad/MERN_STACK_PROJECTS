@@ -181,6 +181,18 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
     claimedKeysByUserId.set(String(u._id), claimed);
   }
 
+  // Resume-derived skill keys (not verified) should contribute to profileMatchScore.
+  for (const u of candidates) {
+    const uid = String(u._id);
+    const claimed = claimedKeysByUserId.get(uid) || new Set();
+    const resumeKeys = Array.isArray(u?.resumeParsed?.skillKeys) ? u.resumeParsed.skillKeys : [];
+    for (const k of resumeKeys) {
+      const nk = normalizeSkillKey(k);
+      if (nk) claimed.add(nk);
+    }
+    claimedKeysByUserId.set(uid, claimed);
+  }
+
   // Assessment-verified skills (batched)
   if (candidateIds.length) {
     const rows = await SkillAssessmentAttempt.aggregate([
@@ -225,7 +237,8 @@ export const listRecruiterCandidates = asyncHandler(async (req, res) => {
         : { matchScore: 0 };
 
       const hasStored = typeof a.matchScore === "number" && Number.isFinite(a.matchScore);
-      mapped.matchScore = hasStored ? a.matchScore : computed.matchScore;
+      // Application.matchScore defaults to 0, so treat 0 as "missing" and recompute.
+      mapped.matchScore = hasStored && a.matchScore > 0 ? a.matchScore : computed.matchScore;
       mapped.profileMatchScore = profileComputed.matchScore;
       mapped.matchedSkills = computed.matchedSkills;
       mapped.missingSkills = computed.missingSkills;
