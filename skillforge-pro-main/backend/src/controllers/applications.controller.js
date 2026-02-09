@@ -145,10 +145,28 @@ export const listMyApplications = asyncHandler(async (req, res) => {
   const jobs = await Job.find({ _id: { $in: jobIds } });
   const jobMap = new Map(jobs.map((j) => [String(j._id), j]));
 
+  const verifiedSkillKeys = await getVerifiedSkillKeysForCandidate({
+    userId: req.user._id,
+    legacySkills: req.user.skills,
+  });
+
+  const resumeSkillKeys = Array.isArray(req.user.resumeParsed?.skillKeys) ? req.user.resumeParsed.skillKeys : [];
+  const combinedSkillKeys = new Set([...verifiedSkillKeys]);
+  for (const k of resumeSkillKeys) combinedSkillKeys.add(String(k));
+
   return ok(
     res,
     {
-      items: apps.map((a) => mapApplication(a, jobMap.get(String(a.jobId)))),
+      items: apps.map((a) => {
+        const job = jobMap.get(String(a.jobId));
+        if (!job) return mapApplication(a, job);
+
+        const { matchScore } = computeSkillMatch({ requiredSkills: job.skills, verifiedSkillKeys: combinedSkillKeys });
+        return {
+          ...mapApplication(a, job),
+          matchScore,
+        };
+      }),
       total,
       page: p,
       pageSize: ps,

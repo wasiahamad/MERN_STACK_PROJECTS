@@ -462,7 +462,7 @@ export default function CandidateDashboard() {
                           <p className="text-sm text-muted-foreground">{app.job.company}</p>
                         </div>
                         <div className="hidden md:flex items-center gap-4">
-                          <Badge className="gradient-primary text-primary-foreground">{app.matchScore}% Match</Badge>
+                          <Badge className="gradient-primary text-primary-foreground">{Math.round(app.matchScore ?? 0)}% Match</Badge>
                           <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${status.bg}`}>
                             <status.icon className={`h-4 w-4 ${status.color}`} />
                             <span className={`text-sm capitalize ${status.color}`}>{app.status}</span>
@@ -530,7 +530,7 @@ export default function CandidateDashboard() {
         </motion.div>
 
         {/* Recommended Jobs */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.52 }}
@@ -580,7 +580,7 @@ export default function CandidateDashboard() {
               )}
             </div>
           </GlassCard>
-        </motion.div>
+        </motion.div> */}
       </div>
     </DashboardLayout>
   );
