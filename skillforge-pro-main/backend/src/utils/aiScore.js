@@ -96,7 +96,10 @@ async function getAssessmentSkillStats(userId) {
 export async function computeCandidateAiScoreBreakdown(userDoc) {
   const assessment = await getAssessmentSkillStats(userDoc._id);
 
-  const yearsExp = computeExperienceYears(userDoc.experience);
+  const yearsExp =
+    typeof userDoc?.yearsOfExperience === "number" && Number.isFinite(userDoc.yearsOfExperience)
+      ? clamp(userDoc.yearsOfExperience, 0, 60)
+      : computeExperienceYears(userDoc.experience);
   const profileCompletion = computeProfileCompletionPercent(userDoc);
 
   const certs = Array.isArray(userDoc.certificates) ? userDoc.certificates : [];

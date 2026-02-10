@@ -77,6 +77,7 @@ function mapUser(user) {
     settings: user.settings || undefined,
     aiScore: user.aiScore ?? undefined,
     reputation: user.reputation ?? undefined,
+    yearsOfExperience: typeof user.yearsOfExperience === "number" ? user.yearsOfExperience : undefined,
     skills: Array.isArray(user.skills) ? user.skills.map(mapSkill) : undefined,
     experience: Array.isArray(user.experience) ? user.experience.map(mapExperience) : undefined,
     education: Array.isArray(user.education) ? user.education.map(mapEducation) : undefined,
@@ -248,6 +249,7 @@ export const updateMe = asyncHandler(async (req, res) => {
     socials,
     settings,
     reputation,
+    yearsOfExperience,
     skills,
     experience,
     education,
@@ -297,6 +299,18 @@ export const updateMe = asyncHandler(async (req, res) => {
       if (!Number.isFinite(n) || n < 0 || n > 100)
         throw new ApiError(400, "VALIDATION", "reputation must be 0..100");
       req.user.reputation = n;
+    }
+
+    if (yearsOfExperience !== undefined) {
+      if (yearsOfExperience === null || yearsOfExperience === "") {
+        req.user.yearsOfExperience = null;
+      } else {
+        const n = Number(yearsOfExperience);
+        if (!Number.isFinite(n) || n < 0 || n > 60) {
+          throw new ApiError(400, "VALIDATION", "yearsOfExperience must be 0..60");
+        }
+        req.user.yearsOfExperience = n;
+      }
     }
 
     // For now: allow replacing arrays whole (simple contract for UI)

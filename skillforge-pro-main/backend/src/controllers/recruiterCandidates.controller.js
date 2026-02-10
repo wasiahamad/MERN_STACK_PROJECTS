@@ -112,7 +112,12 @@ function mapCandidateFrom(user, application, job) {
     profileMatchScore: 0,
     matchedSkills: [],
     missingSkills: [],
-    experience: Array.isArray(user.experience) && user.experience.length ? `${user.experience.length} roles` : "",
+    experience:
+      typeof user.yearsOfExperience === "number" && Number.isFinite(user.yearsOfExperience)
+        ? `${user.yearsOfExperience} years`
+        : Array.isArray(user.experience) && user.experience.length
+          ? `${user.experience.length} roles`
+          : "",
     appliedDate: toYyyyMmDd(application.createdAt),
     status: recruiterStatusFromApplication(application.status),
     nftCertificates: minted,

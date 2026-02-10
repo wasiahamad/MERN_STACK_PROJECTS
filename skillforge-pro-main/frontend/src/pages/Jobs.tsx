@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { JobCardSkeleton } from "@/components/ui/skeleton-loader";
 import { HoverCard, StaggerContainer, StaggerItem } from "@/components/ui/animated-container";
+import { Slider } from "@/components/ui/slider";
 import { usePublicJobs } from "@/lib/apiHooks";
 import type { Job } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
@@ -19,10 +20,9 @@ const Jobs = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [typeQuery, setTypeQuery] = useState("");
-  const [experienceQuery, setExperienceQuery] = useState("");
-  const [salaryMinQuery, setSalaryMinQuery] = useState("");
-  const [salaryMaxQuery, setSalaryMaxQuery] = useState("");
-  const [skillsQuery, setSkillsQuery] = useState("");
+  const [experienceBucketQuery, setExperienceBucketQuery] = useState<"" | "0-1" | "1-3" | "3-5" | "5+">("");
+  const [salaryRangeLpa, setSalaryRangeLpa] = useState<[number, number]>([0, 50]);
+  const [skillQuery, setSkillQuery] = useState("");
   const [sortQuery, setSortQuery] = useState<"newest" | "oldest">("newest");
 
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -37,17 +37,43 @@ const Jobs = () => {
   const [page, setPage] = useState(1);
   const [jobs, setJobs] = useState<Job[]>([]);
 
-  const parseSkills = (v: string) =>
-    v
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const skillOptions = [
+    "React",
+    "TypeScript",
+    "Node.js",
+    "Express",
+    "MongoDB",
+    "Next.js",
+    "Python",
+    "Java",
+    "AWS",
+    "Solidity",
+  ];
 
-  const parseNumberOrUndefined = (v: string) => {
-    const trimmed = v.trim();
-    if (!trimmed) return undefined;
-    const n = Number(trimmed);
-    return Number.isFinite(n) ? n : undefined;
+  const experienceRegexFromBucket = (bucket: string) => {
+    switch (bucket) {
+      case "0-1":
+        return "\\b(0|1)\\b";
+      case "1-3":
+        return "\\b(1|2|3)\\b";
+      case "3-5":
+        return "\\b(3|4|5)\\b";
+      case "5+":
+        return "\\b(5|6|7|8|9|10|11|12|13|14|15)\\b";
+      default:
+        return "";
+    }
+  };
+
+  const salaryMinMaxFromSlider = (range: [number, number]) => {
+    const [minLpa, maxLpa] = range;
+    // Default full range => don't filter
+    if (minLpa <= 0 && maxLpa >= 50) return { min: undefined as number | undefined, max: undefined as number | undefined };
+    const LPA = 100000;
+    return {
+      min: Math.max(0, Math.round(minLpa * LPA)),
+      max: Math.max(0, Math.round(maxLpa * LPA)),
+    };
   };
 
   const queryParams = useMemo(
@@ -135,7 +161,7 @@ const Jobs = () => {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
-                    placeholder="Job title, skills, or company..."
+                    placeholder="Job title or company..."
                     className="pl-10 h-12"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -154,13 +180,14 @@ const Jobs = () => {
                   size="lg"
                   className="h-12 px-8"
                   onClick={() => {
+                    const salary = salaryMinMaxFromSlider(salaryRangeLpa);
                     setAppliedSearch(searchQuery.trim());
                     setAppliedLocation(locationQuery.trim());
                     setAppliedType(typeQuery);
-                    setAppliedExperience(experienceQuery.trim());
-                    setAppliedSalaryMin(parseNumberOrUndefined(salaryMinQuery));
-                    setAppliedSalaryMax(parseNumberOrUndefined(salaryMaxQuery));
-                    setAppliedSkills(parseSkills(skillsQuery));
+                    setAppliedExperience(experienceRegexFromBucket(experienceBucketQuery));
+                    setAppliedSalaryMin(salary.min);
+                    setAppliedSalaryMax(salary.max);
+                    setAppliedSkills(skillQuery ? [skillQuery] : []);
                     setAppliedSort(sortQuery);
                   }}
                 >
@@ -197,58 +224,67 @@ const Jobs = () => {
 
                 <div className="md:col-span-1">
                   <label className="text-xs text-muted-foreground">Experience</label>
-                  <Input
-                    className="mt-1 h-11"
-                    placeholder="e.g. 2+ years"
-                    value={experienceQuery}
-                    onChange={(e) => setExperienceQuery(e.target.value)}
-                  />
+                  <select
+                    className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    value={experienceBucketQuery}
+                    onChange={(e) => setExperienceBucketQuery((e.target.value as any) || "")}
+                  >
+                    <option value="">All</option>
+                    <option value="0-1">0-1 years</option>
+                    <option value="1-3">1-3 years</option>
+                    <option value="3-5">3-5 years</option>
+                    <option value="5+">5+ years</option>
+                  </select>
                 </div>
 
                 <div className="md:col-span-1">
-                  <label className="text-xs text-muted-foreground">Salary Min (₹)</label>
-                  <Input
-                    className="mt-1 h-11"
-                    inputMode="numeric"
-                    placeholder="e.g. 500000"
-                    value={salaryMinQuery}
-                    onChange={(e) => setSalaryMinQuery(e.target.value)}
-                  />
+                  <label className="text-xs text-muted-foreground">Salary Range</label>
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{salaryRangeLpa[0]} LPA</span>
+                      <span>{salaryRangeLpa[1]} LPA</span>
+                    </div>
+                    <div className="mt-2">
+                      <Slider
+                        value={salaryRangeLpa}
+                        min={0}
+                        max={50}
+                        step={1}
+                        onValueChange={(v) => setSalaryRangeLpa([Number(v?.[0] ?? 0), Number(v?.[1] ?? 50)])}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="md:col-span-1">
-                  <label className="text-xs text-muted-foreground">Salary Max (₹)</label>
-                  <Input
-                    className="mt-1 h-11"
-                    inputMode="numeric"
-                    placeholder="e.g. 1500000"
-                    value={salaryMaxQuery}
-                    onChange={(e) => setSalaryMaxQuery(e.target.value)}
-                  />
+                <div className="md:col-span-3">
+                  <label className="text-xs text-muted-foreground">Skill</label>
+                  <select
+                    className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    value={skillQuery}
+                    onChange={(e) => setSkillQuery(e.target.value)}
+                  >
+                    <option value="">Any</option>
+                    {skillOptions.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="text-xs text-muted-foreground">Skills (comma separated)</label>
-                  <Input
-                    className="mt-1 h-11"
-                    placeholder="React, TypeScript, Node"
-                    value={skillsQuery}
-                    onChange={(e) => setSkillsQuery(e.target.value)}
-                  />
-                </div>
-
-                <div className="md:col-span-4 flex flex-wrap gap-3">
+                <div className="md:col-span-6 flex flex-wrap gap-3">
                   <GradientButton
                     size="sm"
                     className="h-10"
                     onClick={() => {
+                      const salary = salaryMinMaxFromSlider(salaryRangeLpa);
                       setAppliedSearch(searchQuery.trim());
                       setAppliedLocation(locationQuery.trim());
                       setAppliedType(typeQuery);
-                      setAppliedExperience(experienceQuery.trim());
-                      setAppliedSalaryMin(parseNumberOrUndefined(salaryMinQuery));
-                      setAppliedSalaryMax(parseNumberOrUndefined(salaryMaxQuery));
-                      setAppliedSkills(parseSkills(skillsQuery));
+                      setAppliedExperience(experienceRegexFromBucket(experienceBucketQuery));
+                      setAppliedSalaryMin(salary.min);
+                      setAppliedSalaryMax(salary.max);
+                      setAppliedSkills(skillQuery ? [skillQuery] : []);
                       setAppliedSort(sortQuery);
                     }}
                   >
@@ -264,10 +300,9 @@ const Jobs = () => {
                       setSearchQuery("");
                       setLocationQuery("");
                       setTypeQuery("");
-                      setExperienceQuery("");
-                      setSalaryMinQuery("");
-                      setSalaryMaxQuery("");
-                      setSkillsQuery("");
+                      setExperienceBucketQuery("");
+                      setSalaryRangeLpa([0, 50]);
+                      setSkillQuery("");
                       setSortQuery("newest");
 
                       setAppliedSearch("");

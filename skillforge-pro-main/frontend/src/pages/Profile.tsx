@@ -206,6 +206,7 @@ export default function Profile() {
     headline: "",
     location: "",
     walletAddress: "",
+    yearsOfExperience: "" as number | "",
     about: "",
     socials: {
       github: "",
@@ -222,6 +223,7 @@ export default function Profile() {
       headline: user.headline || "",
       location: user.location || "",
       walletAddress: user.walletAddress || "",
+      yearsOfExperience: typeof user.yearsOfExperience === "number" ? user.yearsOfExperience : ("" as const),
       about: user.about || "",
       socials: {
         github: user.socials?.github || "",
@@ -243,6 +245,10 @@ export default function Profile() {
   });
   const [newEdu, setNewEdu] = useState({ degree: "", institution: "", year: "", gpa: "" });
 
+  const [showAddExperience, setShowAddExperience] = useState(false);
+  const [showAddEducation, setShowAddEducation] = useState(false);
+  const [showAddSkill, setShowAddSkill] = useState(false);
+
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
 
@@ -256,6 +262,14 @@ export default function Profile() {
     addEducationMutation.isPending ||
     deleteEducationMutation.isPending;
 
+  useEffect(() => {
+    if (!editMode) {
+      setShowAddExperience(false);
+      setShowAddEducation(false);
+      setShowAddSkill(false);
+    }
+  }, [editMode]);
+
   const onSaveToggle = async () => {
     if (!editMode) {
       setEditMode(true);
@@ -268,7 +282,7 @@ export default function Profile() {
         phone: profileForm.phone,
         headline: profileForm.headline,
         location: profileForm.location,
-        walletAddress: profileForm.walletAddress,
+        yearsOfExperience: profileForm.yearsOfExperience === "" ? undefined : Number(profileForm.yearsOfExperience),
         about: profileForm.about,
         socials: profileForm.socials,
       });
@@ -496,9 +510,9 @@ export default function Profile() {
                         {editMode ? (
                           <Input
                             value={profileForm.walletAddress}
-                            onChange={(e) => setProfileForm((p) => ({ ...p, walletAddress: e.target.value }))}
-                            placeholder="0x..."
+                            placeholder="Linked via Settings"
                             className="h-8 w-56"
+                            disabled
                           />
                         ) : (
                           safeWallet || "Add wallet"
@@ -508,6 +522,25 @@ export default function Profile() {
 
                     {editMode && (
                       <div className="mt-4 space-y-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                          <Input
+                            id="yearsOfExperience"
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={60}
+                            value={profileForm.yearsOfExperience}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setProfileForm((p) => ({
+                                ...p,
+                                yearsOfExperience: raw === "" ? "" : Number(raw),
+                              }));
+                            }}
+                            placeholder="e.g. 3"
+                          />
+                        </div>
                         <div className="space-y-1">
                           <Label htmlFor="phone">Phone</Label>
                           <Input
@@ -571,7 +604,11 @@ export default function Profile() {
                     <p className="text-xs text-muted-foreground">Certificates</p>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-muted/50">
-                    <p className="text-2xl font-bold">5+</p>
+                    <p className="text-2xl font-bold">
+                      {typeof user?.yearsOfExperience === "number"
+                        ? user.yearsOfExperience
+                        : Math.round(aiBreakdown?.inputs?.yearsExperience ?? 0)}
+                    </p>
                     <p className="text-xs text-muted-foreground">Years Exp</p>
                   </div>
                 </div>
@@ -978,13 +1015,20 @@ export default function Profile() {
         {activeTab === "experience" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm" disabled={!editMode || busy}>
+              <GradientButton
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  if (!editMode) setEditMode(true);
+                  setShowAddExperience(true);
+                }}
+              >
                 <Plus className="h-4 w-4" />
                 Add Experience
               </GradientButton>
             </div>
 
-            {editMode && (
+            {editMode && showAddExperience && (
               <GlassCard className="p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Add Experience</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1055,6 +1099,7 @@ export default function Profile() {
                         });
                         await refreshMe();
                         setNewExp({ title: "", company: "", location: "", startDate: "", endDate: "", current: false, description: "" });
+                        setShowAddExperience(false);
                         toast({ title: "Added", description: "Experience added." });
                       } catch (e) {
                         toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
@@ -1122,13 +1167,20 @@ export default function Profile() {
         {activeTab === "education" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm" disabled={!editMode || busy}>
+              <GradientButton
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  if (!editMode) setEditMode(true);
+                  setShowAddEducation(true);
+                }}
+              >
                 <Plus className="h-4 w-4" />
                 Add Education
               </GradientButton>
             </div>
 
-            {editMode && (
+            {editMode && showAddEducation && (
               <GlassCard className="p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Add Education</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1163,6 +1215,7 @@ export default function Profile() {
                         });
                         await refreshMe();
                         setNewEdu({ degree: "", institution: "", year: "", gpa: "" });
+                        setShowAddEducation(false);
                         toast({ title: "Added", description: "Education added." });
                       } catch (e) {
                         toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });
@@ -1232,13 +1285,20 @@ export default function Profile() {
         {activeTab === "skills" && (
           <StaggerContainer className="space-y-4">
             <div className="flex justify-end">
-              <GradientButton size="sm" disabled={!editMode || busy}>
+              <GradientButton
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  if (!editMode) setEditMode(true);
+                  setShowAddSkill(true);
+                }}
+              >
                 <Plus className="h-4 w-4" />
                 Add Skill
               </GradientButton>
             </div>
 
-            {editMode && (
+            {editMode && showAddSkill && (
               <GlassCard className="p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Add Skill</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1256,6 +1316,7 @@ export default function Profile() {
                         await addSkillMutation.mutateAsync({ name: newSkill.name, level: 0, verified: false });
                         await refreshMe();
                         setNewSkill({ name: "" });
+                        setShowAddSkill(false);
                         toast({ title: "Added", description: "Skill saved." });
                       } catch (e) {
                         toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" });

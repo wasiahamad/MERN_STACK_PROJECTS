@@ -3,7 +3,12 @@ import type { Job, Application, Notification, DAOProposal, Candidate, User, Skil
 import { apiFetch, toQueryString } from "@/lib/apiClient";
 import type { RecruiterProfile } from "@/context/AuthContext";
 
-type MeUpdateBody = Partial<Pick<User, "name" | "phone" | "avatar" | "walletAddress" | "headline" | "location" | "about" | "socials" | "settings">>;
+type MeUpdateBody = Partial<
+  Pick<
+    User,
+    "name" | "phone" | "avatar" | "walletAddress" | "headline" | "location" | "about" | "socials" | "settings" | "yearsOfExperience"
+  >
+>;
 
 export type MatchedJob = Job & {
   matchScore: number;

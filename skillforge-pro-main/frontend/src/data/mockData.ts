@@ -38,6 +38,7 @@ export interface User {
   resumeMime?: string;
   aiScore?: number;
   reputation?: number;
+  yearsOfExperience?: number;
   savedJobIds?: string[];
 }
 

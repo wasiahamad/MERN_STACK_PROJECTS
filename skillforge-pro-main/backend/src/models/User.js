@@ -40,6 +40,7 @@ const UserSchema = new mongoose.Schema(
     // Candidate-only (still stored here for simplicity)
     aiScore: { type: Number, default: null },
     reputation: { type: Number, default: null },
+    yearsOfExperience: { type: Number, default: null },
 
     savedJobs: { type: [mongoose.Schema.Types.ObjectId], ref: "Job", default: [] },
 
