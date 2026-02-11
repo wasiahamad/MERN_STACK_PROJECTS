@@ -28,7 +28,16 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { useChangePassword, useUpdateMe } from "@/lib/apiHooks";
+import {
+  useActiveSessions,
+  useChangePassword,
+  useDeleteAccount,
+  useRevokeSession,
+  useSettings,
+  useUpdateMe,
+  useUpdateSettings,
+  useWalletStats,
+} from "@/lib/apiHooks";
 import { apiFetch } from "@/lib/apiClient";
 
 const tabs = [
@@ -42,9 +51,18 @@ export default function Settings() {
   const { user, refreshMe, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
   const updateMeMutation = useUpdateMe();
+  const updateSettingsMutation = useUpdateSettings();
   const changePasswordMutation = useChangePassword();
   const { theme, setTheme } = useTheme();
   const [walletBusy, setWalletBusy] = useState(false);
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const settingsQuery = useSettings();
+  const sessionsQuery = useActiveSessions();
+  const walletStatsQuery = useWalletStats();
+  const revokeSessionMutation = useRevokeSession();
+  const deleteAccountMutation = useDeleteAccount();
 
   const [accountForm, setAccountForm] = useState({
     name: "",
@@ -69,24 +87,29 @@ export default function Settings() {
 
   useEffect(() => {
     if (!user) return;
+    const settings = settingsQuery.data?.settings;
     setAccountForm({
       name: user.name || "",
       phone: user.phone || "",
       walletAddress: user.walletAddress || "",
-      language: user.settings?.language || "en-US",
+      language: settings?.language || user.settings?.language || "en-US",
     });
     setNotificationForm({
-      email: user.settings?.notifications?.email ?? true,
-      push: user.settings?.notifications?.push ?? false,
-      applicationUpdates: user.settings?.notifications?.applicationUpdates ?? true,
-      jobMatches: user.settings?.notifications?.jobMatches ?? true,
-      securityAlerts: user.settings?.notifications?.securityAlerts ?? true,
+      email: settings?.notifications?.email ?? user.settings?.notifications?.email ?? true,
+      push: settings?.notifications?.push ?? user.settings?.notifications?.push ?? false,
+      applicationUpdates: settings?.notifications?.applicationUpdates ?? user.settings?.notifications?.applicationUpdates ?? true,
+      jobMatches: settings?.notifications?.jobMatches ?? user.settings?.notifications?.jobMatches ?? true,
+      securityAlerts: settings?.notifications?.securityAlerts ?? user.settings?.notifications?.securityAlerts ?? true,
     });
-  }, [user]);
+  }, [user, settingsQuery.data]);
 
   const isDark = useMemo(() => (theme ?? "system") === "dark", [theme]);
 
-  const busy = updateMeMutation.isPending || changePasswordMutation.isPending;
+  const busy = updateMeMutation.isPending || changePasswordMutation.isPending || updateSettingsMutation.isPending;
+
+  const settings = settingsQuery.data?.settings;
+  const sessions = sessionsQuery.data?.sessions || [];
+  const walletStats = walletStatsQuery.data;
 
   const linkWalletWithSignature = async () => {
     try {
@@ -161,8 +184,10 @@ export default function Settings() {
 
   const saveNotificationsOnly = async () => {
     try {
-      await updateMeMutation.mutateAsync({
-        settings: { darkMode: isDark, language: accountForm.language, notifications: notificationForm },
+      await updateSettingsMutation.mutateAsync({
+        darkMode: isDark,
+        language: accountForm.language,
+        notifications: notificationForm,
       });
       await refreshMe();
       toast({ title: "Saved", description: "Notification preferences updated." });
@@ -199,6 +224,24 @@ export default function Settings() {
     } catch (e: any) {
       toast({
         title: "Unable to update password",
+        description: e?.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    if (!deleteConfirmPassword) {
+      toast({ title: "Password required", description: "Enter your password to confirm.", variant: "destructive" });
+      return;
+    }
+    try {
+      await deleteAccountMutation.mutateAsync(deleteConfirmPassword);
+      toast({ title: "Account deleted", description: "Your account has been deleted. Logging out..." });
+      setTimeout(() => logout(), 2000);
+    } catch (e: any) {
+      toast({
+        title: "Unable to delete account",
         description: e?.message || "Please try again",
         variant: "destructive",
       });
@@ -491,45 +534,111 @@ export default function Settings() {
                           <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Enabled
-                      </Badge>
+                      {settings?.twoFactorEnabled ? (
+                        <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Enabled
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Disabled</Badge>
+                      )}
                     </div>
                   </div>
 
                   {/* Active Sessions */}
                   <div className="border-t border-border pt-6">
                     <h3 className="font-semibold mb-4">Active Sessions</h3>
-                    <div className="space-y-3">
-                      {[
-                        { device: "MacBook Pro", location: "San Francisco, CA", current: true },
-                        { device: "iPhone 14", location: "San Francisco, CA", current: false },
-                      ].map((session, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                          <div>
-                            <p className="font-medium">{session.device}</p>
-                            <p className="text-sm text-muted-foreground">{session.location}</p>
+                    {sessionsQuery.isLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                    ) : sessions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No active sessions</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {sessions.map((session, index) => (
+                          <div key={session.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                            <div>
+                              <p className="font-medium">{session.device || "Unknown Device"}</p>
+                              <p className="text-sm text-muted-foreground">{session.location || "Unknown Location"}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Last active: {new Date(session.lastActive).toLocaleString()}
+                              </p>
+                            </div>
+                            {index === 0 ? (
+                              <Badge>Current</Badge>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                disabled={revokeSessionMutation.isPending}
+                                onClick={() => {
+                                  revokeSessionMutation.mutate(session.id, {
+                                    onSuccess: () => {
+                                      toast({ title: "Session revoked" });
+                                      sessionsQuery.refetch();
+                                    },
+                                    onError: (e: any) => {
+                                      toast({ title: "Failed to revoke session", description: e?.message, variant: "destructive" });
+                                    },
+                                  });
+                                }}
+                              >
+                                <LogOut className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
-                          {session.current ? (
-                            <Badge>Current</Badge>
-                          ) : (
-                            <Button variant="ghost" size="sm" className="text-destructive">
-                              <LogOut className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Danger Zone */}
                   <div className="border-t border-destructive/20 pt-6">
                     <h3 className="font-semibold text-destructive mb-4">Danger Zone</h3>
-                    <Button variant="destructive">
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowDeleteModal(true)}
+                      disabled={deleteAccountMutation.isPending}
+                    >
                       <Trash2 className="h-4 w-4" />
                       Delete Account
                     </Button>
+
+                    {showDeleteModal && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">
+                          <h3 className="text-lg font-semibold mb-2">Delete Account</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            This action cannot be undone. Enter your password to confirm.
+                          </p>
+                          <Input
+                            type="password"
+                            placeholder="Enter your password"
+                            value={deleteConfirmPassword}
+                            onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                            className="mb-4"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setShowDeleteModal(false);
+                                setDeleteConfirmPassword("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={onDeleteAccount}
+                              disabled={deleteAccountMutation.isPending || !deleteConfirmPassword}
+                            >
+                              {deleteAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end">
@@ -612,15 +721,15 @@ export default function Settings() {
                   {/* Blockchain Info */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-4 rounded-xl border border-border text-center">
-                      <p className="text-2xl font-bold gradient-text">4</p>
+                      <p className="text-2xl font-bold gradient-text">{walletStats?.nftCertificates ?? 0}</p>
                       <p className="text-sm text-muted-foreground">NFT Certificates</p>
                     </div>
                     <div className="p-4 rounded-xl border border-border text-center">
-                      <p className="text-2xl font-bold">{user?.reputation}</p>
+                      <p className="text-2xl font-bold">{walletStats?.reputation ?? user?.reputation ?? 0}</p>
                       <p className="text-sm text-muted-foreground">Reputation Score</p>
                     </div>
                     <div className="p-4 rounded-xl border border-border text-center">
-                      <p className="text-2xl font-bold">12</p>
+                      <p className="text-2xl font-bold">{walletStats?.transactions ?? 0}</p>
                       <p className="text-sm text-muted-foreground">Transactions</p>
                     </div>
                   </div>
