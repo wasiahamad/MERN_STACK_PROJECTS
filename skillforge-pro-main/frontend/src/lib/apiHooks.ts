@@ -569,6 +569,42 @@ export function useChangePassword() {
   });
 }
 
+export function useActiveSessions() {
+  return useQuery({
+    queryKey: ["activeSessions"],
+    queryFn: () => apiFetch<{ sessions: Array<{ id: string; device: string; location: string; ip: string; lastActive: string; createdAt: string }> }>("/api/settings/sessions"),
+  });
+}
+
+export function useRevokeSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => apiFetch<{ ok: true }>(`/api/settings/sessions/${sessionId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["activeSessions"] }),
+  });
+}
+
+export function useWalletStats() {
+  return useQuery({
+    queryKey: ["walletStats"],
+    queryFn: () =>
+      apiFetch<{
+        walletAddress: string | null;
+        walletVerified: boolean;
+        nftCertificates: number;
+        verifiedCertificates: number;
+        transactions: number;
+        reputation: number;
+      }>("/api/settings/wallet/stats"),
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (confirmPassword: string) => apiFetch<{ ok: true }>("/api/settings/delete-account", { method: "POST", body: { confirmPassword } }),
+  });
+}
+
 export function useUpdateMe() {
   const qc = useQueryClient();
   return useMutation({

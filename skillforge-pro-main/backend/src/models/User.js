@@ -28,6 +28,7 @@ const UserSchema = new mongoose.Schema(
     settings: {
       darkMode: { type: Boolean, default: false },
       language: { type: String, default: "en-US" },
+      twoFactorEnabled: { type: Boolean, default: false },
       notifications: {
         email: { type: Boolean, default: true },
         push: { type: Boolean, default: false },
@@ -36,6 +37,25 @@ const UserSchema = new mongoose.Schema(
         securityAlerts: { type: Boolean, default: true },
       },
     },
+
+    // Active sessions tracking (login history)
+    activeSessions: {
+      type: [
+        {
+          token: { type: String, required: true },
+          device: { type: String, default: "" },
+          location: { type: String, default: "" },
+          ip: { type: String, default: "" },
+          userAgent: { type: String, default: "" },
+          createdAt: { type: Date, default: Date.now },
+          lastActive: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+
+    // Soft delete
+    deletedAt: { type: Date, default: null },
 
     // Candidate-only (still stored here for simplicity)
     aiScore: { type: Number, default: null },
