@@ -1855,9 +1855,9 @@ Storage (Cloudinary):
 ### D. Contact & Support
 
 **Development Team:**
-- Lead Developer: [Name]
-- Blockchain Engineer: [Name]
-- AI/ML Engineer: [Name]
+- Lead Developer: [MD WASI AHMAD]
+- Blockchain Engineer: [MD WASI AHMAD]
+- AI/ML Engineer: [MD WASI AHMAD]
 
 **Documentation:**
 - GitHub: github.com/skillforge/platform
