@@ -1821,13 +1821,13 @@ FRONTEND_URL=https://skillforge.com
 │                      PRODUCTION SETUP                        │
 └─────────────────────────────────────────────────────────────┘
 
-Frontend (Vercel):
-- React build deployed to Vercel
+Frontend (Render):
+- React build deployed to Render
 - CDN edge caching
 - Automatic HTTPS
 - Domain: app.skillforge.com
 
-Backend (Railway):
+Backend (Render):
 - Node.js API server
 - Auto-scaling enabled
 - Health checks (/health)
