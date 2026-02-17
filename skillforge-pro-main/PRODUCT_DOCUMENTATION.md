@@ -1472,7 +1472,7 @@ if (recoveredAddress !== address) {
 **Application Spam Prevention:**
 - Rate limit: Max 10 applications per day
 - Duplicate application blocking
-- Profile completion check (min 50%)
+- Profile completion check (min 50%).
 
 ---
 
@@ -1860,7 +1860,7 @@ Storage (Cloudinary):
 - AI/ML Engineer: [MD WASI AHMAD]
 
 **Documentation:**
-- GitHub: github.com/skillforge/platform
+- GitHub: https://github.com/wasiahamad/MERN_STACK_PROJECTS/tree/main/skillforge-pro-main
 - Docs: docs.skillforge.com
 - API Reference: api.skillforge.com/docs
 
