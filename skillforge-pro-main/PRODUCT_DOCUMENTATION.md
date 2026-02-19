@@ -1472,7 +1472,7 @@ if (recoveredAddress !== address) {
 **Application Spam Prevention:**
 - Rate limit: Max 10 applications per day
 - Duplicate application blocking
-- Profile completion check (min 50%).
+- Profile completion check (min 60%).
 
 ---
 
