@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSidebar } from "@/contexts/SidebarContext";
 import {
   LayoutDashboard,
   Users,
@@ -28,7 +28,7 @@ const navItems = [
 ];
 
 export default function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebar();
   const location = useLocation();
 
   return (
@@ -101,7 +101,7 @@ export default function AppSidebar() {
       {/* Collapse Toggle */}
       <div className="border-t border-border p-3">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleCollapsed}
           className="flex w-full items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}

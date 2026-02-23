@@ -321,3 +321,39 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
   return ok(res, { ok: true }, "Password reset successful");
 });
+
+// Admin login (no OTP, no registration)
+export const adminLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    throw new ApiError(400, "VALIDATION", "email and password are required");
+  }
+
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail, role: "admin" }).select("+password");
+  
+  if (!user) {
+    throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid admin credentials");
+  }
+
+  const okPass = await user.comparePassword(String(password));
+  if (!okPass) {
+    throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid admin credentials");
+  }
+
+  const token = signAuthToken(user);
+
+  return ok(
+    res,
+    {
+      token,
+      user: {
+        id: String(user._id),
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      },
+    },
+    "Admin logged in"
+  );
+});

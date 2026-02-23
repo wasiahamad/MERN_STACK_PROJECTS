@@ -8,6 +8,7 @@ import {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  adminLogin,
 } from "../controllers/auth.controller.js";
 import { me } from "../controllers/authMe.controller.js";
 import { authLimiter, otpLimiter } from "../middlewares/rateLimiters.js";
