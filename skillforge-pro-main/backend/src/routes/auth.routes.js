@@ -21,6 +21,7 @@ router.post("/verify-email-otp", otpLimiter, verifyEmailOtp);
 router.post("/resend-email-otp", otpLimiter, resendEmailOtp);
 
 router.post("/login", authLimiter, login);
+router.post("/admin/login", authLimiter, adminLogin);
 
 router.get("/me", requireAuth, me);
 

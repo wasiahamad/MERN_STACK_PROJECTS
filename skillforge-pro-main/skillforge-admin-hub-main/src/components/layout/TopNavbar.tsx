@@ -1,25 +1,37 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, User, Sun, Moon, Monitor } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, Bell, User, Sun, Moon, Monitor, LogOut } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { notifications } from "@/lib/mockData";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function TopNavbar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [showNotifs, setShowNotifs] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const notifsRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifsRef.current && !notifsRef.current.contains(e.target as Node)) setShowNotifs(false);
       if (themeRef.current && !themeRef.current.contains(e.target as Node)) setShowTheme(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setShowProfile(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-xl px-6">
@@ -99,15 +111,38 @@ export default function TopNavbar() {
         </div>
 
         {/* Profile */}
-        <button className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted transition-colors">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full gradient-primary">
-            <User className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium text-foreground">Admin</p>
-            <p className="text-xs text-muted-foreground">admin@skillforge.io</p>
-          </div>
-        </button>
+        <div ref={profileRef} className="relative">
+          <button 
+            onClick={() => setShowProfile(!showProfile)}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted transition-colors"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full gradient-primary">
+              <User className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-sm font-medium text-foreground">{user?.name || "Admin"}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || "admin@skillforge.io"}</p>
+            </div>
+          </button>
+          <AnimatePresence>
+            {showProfile && (
+              <motion.div 
+                initial={{ opacity: 0, y: 8 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: 8 }}
+                className="absolute right-0 top-12 w-56 rounded-lg border border-border bg-card shadow-lg z-50 p-1"
+              >
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </header>
   );
