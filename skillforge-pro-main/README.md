@@ -7,6 +7,12 @@ Last Updated: February 11, 2026
 
 ---
 
+## 🌐 Live Demo
+
+**[View Live Application](https://chainhires.onrender.com/)**
+
+---
+
 ## Table of Contents
 
 1. [Product Overview](#1-product-overview)
@@ -28,10 +34,13 @@ Last Updated: February 11, 2026
 ## 1. Product Overview
 
 ### 1.1 Platform Type
+
 **SkillForge Pro** is an enterprise-grade job portal platform that combines Artificial Intelligence and Blockchain technology to create a fraud-free, transparent, and efficient hiring ecosystem.
 
 ### 1.2 Core Problem Statement
+
 Traditional job portals face:
+
 - Fake skill claims and resume fraud
 - Time-consuming candidate screening
 - Lack of verifiable credentials
@@ -39,6 +48,7 @@ Traditional job portals face:
 - Trust issues in hiring
 
 ### 1.3 Our Solution
+
 - **AI-Powered Resume Analysis**: Automatic skill extraction and profile scoring
 - **Blockchain Verified Certificates**: Tamper-proof skill credentials via NFTs
 - **Smart Job Matching**: AI-driven compatibility scoring (0-100%)
@@ -48,13 +58,14 @@ Traditional job portals face:
 
 ### 1.4 Target Users
 
-| User Type | Primary Use Cases |
-|-----------|------------------|
+| User Type      | Primary Use Cases                                                    |
+| -------------- | -------------------------------------------------------------------- |
 | **Candidates** | Job search, skill verification, resume building, certificate earning |
-| **Recruiters** | Job posting, candidate screening, skill verification, hiring |
-| **Admin** | Platform management, analytics, moderation, blockchain monitoring |
+| **Recruiters** | Job posting, candidate screening, skill verification, hiring         |
+| **Admin**      | Platform management, analytics, moderation, blockchain monitoring    |
 
 ### 1.5 Key Differentiators
+
 1. **Blockchain Trust Layer**: Immutable skill certificates
 2. **Dynamic AI Matching**: Real-time job-candidate compatibility
 3. **Resume-Aware Matching**: AI parses resumes to extract hidden skills
@@ -68,6 +79,7 @@ Traditional job portals face:
 ### 2.1 Candidate
 
 **Access Rights:**
+
 - ✅ View/Edit own profile
 - ✅ Upload resume (PDF)
 - ✅ Take skill assessments
@@ -78,6 +90,7 @@ Traditional job portals face:
 - ✅ Participate in DAO voting
 
 **Profile Components:**
+
 - Basic Info (name, email, phone, location)
 - Headline & About
 - Skills (verified & unverified)
@@ -91,6 +104,7 @@ Traditional job portals face:
 ### 2.2 Recruiter
 
 **Access Rights:**
+
 - ✅ Create company profile
 - ✅ Post jobs
 - ✅ View AI-ranked candidates
@@ -100,6 +114,7 @@ Traditional job portals face:
 - ✅ Access analytics dashboard
 
 **Profile Components:**
+
 - Company name & logo
 - Industry & size
 - About company
@@ -111,6 +126,7 @@ Traditional job portals face:
 ### 2.3 Admin (Future Scope)
 
 **Access Rights:**
+
 - ✅ User management (suspend/activate)
 - ✅ Job moderation
 - ✅ Certificate validation
@@ -133,17 +149,17 @@ Traditional job portals face:
 1. REGISTRATION
    ↓
    Email → OTP Verification → Account Created
-   
+
 2. PROFILE SETUP
    ↓
    Basic Info → Experience → Education → Skills → Upload Resume
-   
+
 3. RESUME ANALYSIS (AI)
    ↓
    PDF Text Extraction → OpenAI/Heuristic Parsing → Skill Keys Extracted
    ↓
    Auto-populate skills → Update profile
-   
+
 4. SKILL ASSESSMENT
    ↓
    Select Skill → AI Generates Questions → Take Test (10 Q, 15 min)
@@ -151,25 +167,25 @@ Traditional job portals face:
    Auto-Evaluation → Score Calculation → Pass/Fail
    ↓
    If Pass → Blockchain Certificate Minting
-   
+
 5. BLOCKCHAIN CERTIFICATE
    ↓
    Smart Contract Called → NFT Minted → TxHash Stored
    ↓
    Certificate visible on profile (verified badge)
-   
+
 6. JOB SEARCH
    ↓
    Browse Jobs → AI Match Score Shown → Filter by Skills/Location/Salary
    ↓
    View Job Details → Apply
-   
+
 7. APPLICATION TRACKING
    ↓
    View Status (Pending/Shortlisted/Rejected)
    ↓
    Dynamic Match % shown based on profile
-   
+
 8. WALLET & DAO
    ↓
    Link MetaMask → Verify Ownership → Vote on Proposals
@@ -185,35 +201,35 @@ Traditional job portals face:
 1. REGISTRATION
    ↓
    Email → OTP Verification → Account Created
-   
+
 2. COMPANY PROFILE
    ↓
    Company Details → Logo Upload → Industry Selection → Profile Complete
-   
+
 3. JOB POSTING
    ↓
    Job Title → Description → Requirements → Skills → Salary Range
    ↓
    Set Min AI Score → Set Required Certificates → Publish
-   
+
 4. CANDIDATE DISCOVERY
    ↓
    AI Auto-Ranks Candidates by Match % → View Top Candidates
    ↓
    Filter by: Verified Skills, AI Score, Experience, Location
-   
+
 5. PROFILE REVIEW
    ↓
    View Full Profile → Download Resume → Verify Blockchain Certificates
    ↓
    Check Reputation Score → View Assessment History
-   
+
 6. APPLICATION MANAGEMENT
    ↓
    Shortlist → Schedule Interview → Reject → Hire
    ↓
    Send notifications → Track application status
-   
+
 7. ANALYTICS DASHBOARD
    ↓
    View: Total Applicants, Match % Distribution, Verified vs Non-verified
@@ -233,11 +249,11 @@ Traditional job portals face:
    User creates proposal (platform improvement, fee changes, etc.)
    ↓
    Proposal stored in DB + optional blockchain record
-   
+
 2. WALLET VERIFICATION
    ↓
    User links wallet → Sign message → Ownership verified
-   
+
 3. VOTING
    ↓
    Users vote (For/Against/Abstain)
@@ -245,13 +261,13 @@ Traditional job portals face:
    If blockchain enabled: On-chain voting via smart contract
    ↓
    Else: Off-chain voting in database
-   
+
 4. PROPOSAL MANAGEMENT
    ↓
    Owner can edit/delete proposal
    ↓
    Admin can change status (active/executed/rejected)
-   
+
 5. EXECUTION
    ↓
    If proposal passes → Admin executes → Status updated
@@ -336,6 +352,7 @@ Traditional job portals face:
 ### 4.2 Technology Stack
 
 **Frontend:**
+
 - React 18 with TypeScript
 - Vite (build tool)
 - React Query (data fetching)
@@ -344,6 +361,7 @@ Traditional job portals face:
 - ethers.js (Web3 wallet integration)
 
 **Backend:**
+
 - Node.js 18+
 - Express.js
 - MongoDB with Mongoose ODM
@@ -353,17 +371,20 @@ Traditional job portals face:
 - pdf-parse for resume parsing
 
 **Blockchain:**
+
 - Solidity ^0.8.0
 - Hardhat (development framework)
 - Ethers.js v6
 - Polygon Mumbai (testnet) / Polygon Mainnet
 
 **AI/ML:**
+
 - OpenAI GPT-4 (via OpenRouter)
 - Heuristic fallback for skill extraction
 - Custom scoring algorithms
 
 **Infrastructure:**
+
 - Cloudinary (image/file CDN)
 - MongoDB Atlas (database hosting)
 - Vercel/Netlify (frontend hosting)
@@ -378,6 +399,7 @@ Traditional job portals face:
 **Purpose:** Extract structured data from uploaded PDF resumes
 
 **Flow:**
+
 ```
 PDF Upload → Text Extraction → AI Analysis → Skill Extraction → Profile Update
 ```
@@ -390,6 +412,7 @@ PDF Upload → Text Extraction → AI Analysis → Skill Extraction → Profile 
    - Generates text hash (SHA-256) for change detection
 
 2. **AI Analysis (OpenRouter/OpenAI)**
+
    ```json
    {
      "model": "openai/gpt-4",
@@ -424,6 +447,7 @@ PDF Upload → Text Extraction → AI Analysis → Skill Extraction → Profile 
    ```
 
 **Storage:**
+
 ```javascript
 resumeParsed: {
   textHash: String,
@@ -442,6 +466,7 @@ resumeParsed: {
 **Purpose:** Calculate compatibility percentage between job and candidate
 
 **Algorithm:**
+
 ```javascript
 Match Score = (
   Verified Skills Match × 60% +
@@ -452,23 +477,25 @@ Match Score = (
 ```
 
 **Skill Matching Logic:**
+
 ```javascript
 function computeSkillMatch(jobSkills, candidateSkills, resumeSkills) {
   const normalizedJobSkills = normalize(jobSkills);
   const verifiedKeys = extractKeys(candidateSkills);
   const resumeKeys = extractKeys(resumeSkills);
-  
+
   const allCandidateKeys = [...verifiedKeys, ...resumeKeys];
-  
-  const matched = normalizedJobSkills.filter(skill => 
-    allCandidateKeys.includes(skill)
+
+  const matched = normalizedJobSkills.filter((skill) =>
+    allCandidateKeys.includes(skill),
   );
-  
+
   return (matched.length / normalizedJobSkills.length) * 100;
 }
 ```
 
 **Skill Normalization:**
+
 - React → react, reactjs, react.js
 - Node.js → nodejs, node
 - TypeScript → typescript, ts
@@ -478,21 +505,24 @@ function computeSkillMatch(jobSkills, candidateSkills, resumeSkills) {
 **Purpose:** Generate skill-based assessment questions dynamically
 
 **Flow:**
+
 ```
 Skill Selection → AI Prompt → Generate 10 Questions → Store → Present to User
 ```
 
 **Prompt Engineering:**
+
 ```json
 {
   "system": "You are a technical interviewer generating skill assessment questions",
-  "user": "Generate 10 multiple-choice questions for {skillName} assessment. 
-           Difficulty: {difficulty}. 
+  "user": "Generate 10 multiple-choice questions for {skillName} assessment.
+           Difficulty: {difficulty}.
            Format: JSON array with question, options, correctAnswer"
 }
 ```
 
 **Question Schema:**
+
 ```json
 {
   "questionId": "uuid",
@@ -504,21 +534,25 @@ Skill Selection → AI Prompt → Generate 10 Questions → Store → Present to
 ```
 
 **Evaluation Logic:**
+
 ```javascript
 function evaluateAssessment(submission) {
   let correct = 0;
-  submission.answers.forEach(answer => {
+  submission.answers.forEach((answer) => {
     if (answer.selected === answer.correctAnswer) {
       correct++;
     }
   });
-  
+
   const accuracy = (correct / submission.answers.length) * 100;
-  
-  const status = accuracy >= 70 ? "verified" : 
-                 accuracy >= 50 ? "partially_verified" : 
-                 "not_verified";
-  
+
+  const status =
+    accuracy >= 70
+      ? "verified"
+      : accuracy >= 50
+        ? "partially_verified"
+        : "not_verified";
+
   return { accuracy, status, correct, total: submission.answers.length };
 }
 ```
@@ -528,6 +562,7 @@ function evaluateAssessment(submission) {
 **Purpose:** Generate deterministic candidate quality score (0-100)
 
 **Formula:**
+
 ```
 AI Score = Base (10) +
            Verified Skills Component (0-55) +
@@ -540,21 +575,25 @@ AI Score = Base (10) +
 **Component Breakdown:**
 
 1. **Verified Skills** (max 55 points)
+
    ```
    Count × 8 + AvgAccuracy × 0.3
    ```
 
 2. **Partial Skills** (max 10 points)
+
    ```
    Count × 2
    ```
 
 3. **Experience** (max 20 points)
+
    ```
    YearsOfExperience × 4 (capped at 20)
    ```
 
 4. **Certificates** (max 10 points)
+
    ```
    VerifiedCerts × 2 + NFTMintedCerts × 1
    ```
@@ -565,6 +604,7 @@ AI Score = Base (10) +
    ```
 
 **Profile Completion Checks:**
+
 - Basic Info (name, email) ✓
 - Location ✓
 - About/Headline ✓
@@ -589,33 +629,33 @@ AI Score = Base (10) +
 
 ```solidity
 contract CertificateRegistry is ERC721URIStorage {
-  
+
   struct Certificate {
     string candidateHash;    // SHA-256 hash of candidate info (no PII)
     string skillName;
     uint256 issuedAt;
     bool isValid;
   }
-  
+
   mapping(uint256 => Certificate) public certificates;
   uint256 private _tokenIdCounter;
-  
+
   // Mint new certificate
   function mintCertificate(
     string memory candidateHash,
     string memory skillName
   ) public returns (uint256)
-  
+
   // Verify certificate
-  function verifyCertificate(uint256 tokenId) 
+  function verifyCertificate(uint256 tokenId)
     public view returns (bool)
-  
+
   // Get certificates by holder
-  function getCertificatesByHolder(address holder) 
+  function getCertificatesByHolder(address holder)
     public view returns (uint256[] memory)
-  
+
   // Revoke certificate (admin only)
-  function revokeCertificate(uint256 tokenId) 
+  function revokeCertificate(uint256 tokenId)
     public onlyAdmin
 }
 ```
@@ -637,6 +677,7 @@ Certificate visible on candidate profile (verified badge)
 ```
 
 **Data Storage Strategy:**
+
 - ❌ **Never store** PII on blockchain (name, email, phone)
 - ✅ **Store** cryptographic hash of candidate identity
 - ✅ **Store** skill name, timestamp, issuer address
@@ -650,7 +691,7 @@ Certificate visible on candidate profile (verified badge)
 
 ```solidity
 contract DAOGovernance {
-  
+
   struct Proposal {
     uint256 id;
     address proposer;
@@ -661,20 +702,20 @@ contract DAOGovernance {
     uint256 deadline;
     bool executed;
   }
-  
+
   mapping(uint256 => Proposal) public proposals;
   mapping(uint256 => mapping(address => bool)) public hasVoted;
-  
+
   // Create proposal
-  function createProposal(string memory description) 
+  function createProposal(string memory description)
     public returns (uint256)
-  
+
   // Vote on proposal (0=Against, 1=For, 2=Abstain)
-  function vote(uint256 proposalId, uint8 support) 
+  function vote(uint256 proposalId, uint8 support)
     public
-  
+
   // Execute proposal (if passed)
-  function executeProposal(uint256 proposalId) 
+  function executeProposal(uint256 proposalId)
     public
 }
 ```
@@ -710,13 +751,13 @@ async function connectWallet() {
 function linkWallet(req, res) {
   const { address, signature } = req.body;
   const message = `SkillForge Wallet Linking\nAddress: ${address}\nNonce: ${nonce}`;
-  
+
   const recoveredAddress = ethers.verifyMessage(message, signature);
-  
+
   if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
     throw new Error("Invalid signature");
   }
-  
+
   user.walletAddress = address.toLowerCase();
   user.walletVerifiedAt = new Date();
   await user.save();
@@ -733,13 +774,13 @@ const contract = new ethers.Contract(contractAddress, abi, provider);
 contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
   await Certificate.findOneAndUpdate(
     { candidateHash, skillName },
-    { 
+    {
       nftMinted: true,
       tokenId: tokenId.toString(),
       chainTxHash: event.transactionHash,
       chainContractAddress: contractAddress,
-      chainNetwork: "polygon-mumbai"
-    }
+      chainNetwork: "polygon-mumbai",
+    },
   );
 });
 ```
@@ -751,6 +792,7 @@ contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
 ### 7.1 Assessment Architecture
 
 **Components:**
+
 1. Question Generator (AI)
 2. Test Engine (Frontend)
 3. Auto-Evaluator (Backend)
@@ -767,14 +809,14 @@ contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
 1. SKILL SELECTION
    User selects skill (e.g., "React", "Python")
    ↓
-   
+
 2. QUESTION GENERATION
    Backend calls AI: "Generate 10 questions for React assessment"
    ↓
    AI returns JSON array of questions
    ↓
    Questions stored in DB with attemptId
-   
+
 3. TEST PRESENTATION
    Frontend fetches questions → Start timer (15 minutes)
    ↓
@@ -782,20 +824,20 @@ contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
    - Disable copy/paste
    - Detect tab switching
    - Warn user on suspicious activity
-   
+
 4. ANSWER SUBMISSION
    User submits answers → Backend receives
    ↓
-   
+
 5. AUTO-EVALUATION
    Backend compares selected answers with correct answers
    ↓
    Calculate:
    - Accuracy = (correct / total) × 100
-   - Status = accuracy >= 70% ? "verified" : 
-              accuracy >= 50% ? "partially_verified" : 
+   - Status = accuracy >= 70% ? "verified" :
+              accuracy >= 50% ? "partially_verified" :
               "not_verified"
-   
+
 6. BLOCKCHAIN MINTING (if verified)
    If status === "verified":
    ↓
@@ -803,7 +845,7 @@ contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
    ↓
    Store transaction hash in DB
    ↓
-   
+
 7. RESULT DISPLAY
    Show user: Score, Verified Badge, Certificate ID
 ```
@@ -811,14 +853,15 @@ contract.on("CertificateMinted", async (tokenId, candidateHash, skillName) => {
 ### 7.3 Anti-Cheating Mechanisms
 
 **Frontend Guards:**
+
 ```javascript
 // Disable copy-paste
-document.addEventListener('copy', (e) => e.preventDefault());
-document.addEventListener('paste', (e) => e.preventDefault());
+document.addEventListener("copy", (e) => e.preventDefault());
+document.addEventListener("paste", (e) => e.preventDefault());
 
 // Detect tab switching
 let tabSwitchCount = 0;
-document.addEventListener('visibilitychange', () => {
+document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     tabSwitchCount++;
     if (tabSwitchCount > 3) {
@@ -829,7 +872,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Disable right-click
-document.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener("contextmenu", (e) => e.preventDefault());
 
 // Full-screen enforcement
 function enterFullScreen() {
@@ -838,10 +881,12 @@ function enterFullScreen() {
 ```
 
 **Backend Validation:**
+
 ```javascript
 // Time validation
 const timeElapsed = (new Date() - attempt.startedAt) / 1000;
-if (timeElapsed > 900) { // 15 min = 900 sec
+if (timeElapsed > 900) {
+  // 15 min = 900 sec
   throw new Error("Time limit exceeded");
 }
 
@@ -864,27 +909,27 @@ SkillAssessmentAttempt {
   skillName: String,
   status: "pending" | "in_progress" | "submitted",
   verificationStatus: "verified" | "partially_verified" | "not_verified",
-  
+
   questions: [{
     questionId: String,
     text: String,
     options: [String],
     correctAnswer: String
   }],
-  
+
   answers: [{
     questionId: String,
     selectedAnswer: String
   }],
-  
+
   accuracy: Number,        // 0-100
   correctCount: Number,
   totalCount: Number,
-  
+
   startedAt: Date,
   submittedAt: Date,
   timeSpent: Number,       // seconds
-  
+
   certificateId: ObjectId, // if verified
   nftMinted: Boolean
 }
@@ -903,7 +948,7 @@ User {
   password: String (hashed, select: false),
   role: "candidate" | "recruiter",
   emailVerified: Boolean,
-  
+
   // Profile
   name: String,
   phone: String,
@@ -911,14 +956,14 @@ User {
   headline: String,
   location: String,
   about: String,
-  
+
   // Candidate-specific
   skills: [{
     name: String,
     level: Number,
     verified: Boolean
   }],
-  
+
   experience: [{
     title: String,
     company: String,
@@ -928,14 +973,14 @@ User {
     current: Boolean,
     description: String
   }],
-  
+
   education: [{
     degree: String,
     institution: String,
     year: String,
     gpa: String
   }],
-  
+
   certificates: [{
     name: String,
     issuer: String,
@@ -946,7 +991,7 @@ User {
     chainTxHash: String,
     chainContractAddress: String
   }],
-  
+
   // Resume
   resumeUrl: String,
   resumeFileName: String,
@@ -958,17 +1003,17 @@ User {
     skillKeys: [String],
     headlineHint: String
   },
-  
+
   // Blockchain
   walletAddress: String,
   walletVerifiedAt: Date,
   walletNonce: String (select: false),
-  
+
   // Scores
   aiScore: Number,           // 0-100
   reputation: Number,        // 0-100
   yearsOfExperience: Number,
-  
+
   // Settings
   settings: {
     darkMode: Boolean,
@@ -982,7 +1027,7 @@ User {
       securityAlerts: Boolean
     }
   },
-  
+
   // Sessions
   activeSessions: [{
     token: String,
@@ -993,13 +1038,13 @@ User {
     createdAt: Date,
     lastActive: Date
   }],
-  
+
   // Security
   otpHash: String (select: false),
   otpExpiry: Date (select: false),
   tokenInvalidBefore: Date,
   deletedAt: Date,
-  
+
   savedJobs: [ObjectId],
   createdAt: Date,
   updatedAt: Date
@@ -1014,40 +1059,40 @@ Job {
   title: String (required),
   description: String,
   requirements: [String],
-  
+
   // Company
   companyName: String,
   companyLogo: String,
   companyDescription: String,
-  
+
   // Location
   location: String,
   type: "Full-time" | "Part-time" | "Contract" | "Remote",
-  
+
   // Compensation
   salaryMin: Number,
   salaryMax: Number,
   currency: String,
-  
+
   // Skills
   skills: [String],
   experienceLevel: String,
-  
+
   // AI Requirements
   minAiScore: Number,        // Minimum AI score required
   requiredCertificates: [String],
-  
+
   // Recruiter
   recruiterId: ObjectId (required),
   recruiterProfile: ObjectId,
-  
+
   // Status
   status: "active" | "closed" | "draft",
-  
+
   // Stats
   views: Number,
   applicantsCount: Number,
-  
+
   // Timestamps
   createdAt: Date,
   updatedAt: Date,
@@ -1063,24 +1108,24 @@ Application {
   jobId: ObjectId (required),
   candidateId: ObjectId (required),
   recruiterId: ObjectId (required),
-  
+
   // Match Score
   matchScore: Number,        // Calculated at apply time
-  
+
   // Status
   status: "pending" | "shortlisted" | "rejected" | "interviewed" | "hired" | "withdrawn",
-  
+
   // Cover Letter
   coverLetter: String,
-  
+
   // Notes (recruiter-only)
   recruiterNotes: String,
-  
+
   // Timeline
   appliedAt: Date,
   viewedAt: Date,
   statusChangedAt: Date,
-  
+
   createdAt: Date,
   updatedAt: Date
 }
@@ -1092,10 +1137,10 @@ Application {
 SkillAssessmentAttempt {
   userId: ObjectId (required),
   skillName: String (required),
-  
+
   status: "pending" | "in_progress" | "submitted",
   verificationStatus: "verified" | "partially_verified" | "not_verified",
-  
+
   questions: [{
     questionId: String,
     text: String,
@@ -1103,26 +1148,26 @@ SkillAssessmentAttempt {
     correctAnswer: String,
     difficulty: "easy" | "medium" | "hard"
   }],
-  
+
   answers: [{
     questionId: String,
     selectedAnswer: String
   }],
-  
+
   // Results
   accuracy: Number,
   correctCount: Number,
   totalCount: Number,
-  
+
   // Timing
   startedAt: Date,
   submittedAt: Date,
   timeSpent: Number,
-  
+
   // Certificate
   certificateId: ObjectId,
   nftMinted: Boolean,
-  
+
   timestamp: Date
 }
 ```
@@ -1133,23 +1178,23 @@ SkillAssessmentAttempt {
 DAOProposal {
   title: String (required),
   description: String (required),
-  
+
   // Proposer
   proposerUserId: ObjectId,
   proposerLabel: String,
-  
+
   // Status
   status: "active" | "executed" | "rejected" | "pending",
-  
+
   // Voting
   forVotes: Number,
   againstVotes: Number,
   abstainVotes: Number,
-  
+
   // Blockchain
   chainProposalId: String,
   chainTxHash: String,
-  
+
   // Timeline
   createdAt: Date,
   deadline: Date,
@@ -1163,7 +1208,7 @@ DAOProposal {
 ```javascript
 RecruiterProfile {
   userId: ObjectId (required, unique),
-  
+
   // Company Info
   companyName: String,
   website: String,
@@ -1172,11 +1217,11 @@ RecruiterProfile {
   about: String,
   logo: String,
   location: String,
-  
+
   // Verification
   isVerified: Boolean,
   isComplete: Boolean,
-  
+
   createdAt: Date,
   updatedAt: Date
 }
@@ -1187,17 +1232,17 @@ RecruiterProfile {
 ```javascript
 Notification {
   userId: ObjectId (required),
-  
+
   type: "application" | "job_match" | "assessment" | "message" | "system",
   title: String,
   message: String,
-  
+
   // Optional references
   jobId: ObjectId,
   applicationId: ObjectId,
-  
+
   read: Boolean,
-  
+
   createdAt: Date
 }
 ```
@@ -1329,13 +1374,12 @@ POST   /api/settings/delete-account - Delete account
 ### 10.1 Authentication Security
 
 **JWT Token Strategy:**
+
 ```javascript
 // Token Generation
-const token = jwt.sign(
-  { userId: user._id, role: user.role },
-  JWT_SECRET,
-  { expiresIn: '7d' }
-);
+const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
+  expiresIn: "7d",
+});
 
 // Token Validation
 const decoded = jwt.verify(token, JWT_SECRET);
@@ -1345,6 +1389,7 @@ if (user.tokenInvalidBefore > decoded.iat) {
 ```
 
 **OTP System:**
+
 - 6-digit random code
 - Hashed storage (bcrypt)
 - 10-minute expiry
@@ -1352,6 +1397,7 @@ if (user.tokenInvalidBefore > decoded.iat) {
 - Auto-cleanup on verification
 
 **Password Security:**
+
 - Bcrypt hashing (salt rounds: 10)
 - Minimum 8 characters
 - Password change invalidates all sessions
@@ -1359,42 +1405,56 @@ if (user.tokenInvalidBefore > decoded.iat) {
 ### 10.2 API Security
 
 **Rate Limiting:**
+
 ```javascript
 // Global rate limit
-app.use('/api', rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,                  // max requests
-  message: "Too many requests"
-}));
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // max requests
+    message: "Too many requests",
+  }),
+);
 
 // Login rate limit
-app.use('/api/auth/login', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: "Too many login attempts"
-}));
+app.use(
+  "/api/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: "Too many login attempts",
+  }),
+);
 ```
 
 **CORS Configuration:**
+
 ```javascript
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+  }),
+);
 ```
 
 **Security Headers:**
+
 ```javascript
-app.use(helmet({
-  contentSecurityPolicy: true,
-  crossOriginEmbedderPolicy: true,
-  crossOriginResourcePolicy: true
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: true,
+    crossOriginEmbedderPolicy: true,
+    crossOriginResourcePolicy: true,
+  }),
+);
 ```
 
 ### 10.3 Data Security
 
 **Sensitive Field Protection:**
+
 ```javascript
 // Never select password by default
 password: { type: String, select: false }
@@ -1404,35 +1464,38 @@ const user = await User.findById(id).select('+password');
 ```
 
 **Input Sanitization:**
+
 ```javascript
 // Escape HTML
-import xss from 'xss';
+import xss from "xss";
 const clean = xss(userInput);
 
 // Validate email
-import validator from 'validator';
+import validator from "validator";
 if (!validator.isEmail(email)) {
   throw new Error("Invalid email");
 }
 ```
 
 **File Upload Security:**
+
 ```javascript
 const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    const allowed = ["application/pdf", "image/jpeg", "image/png"];
     if (!allowed.includes(file.mimetype)) {
       cb(new Error("Invalid file type"));
     }
     cb(null, true);
-  }
+  },
 });
 ```
 
 ### 10.4 Blockchain Security
 
 **Wallet Ownership Verification:**
+
 ```javascript
 // Sign deterministic message
 const message = `SkillForge Wallet Linking
@@ -1447,6 +1510,7 @@ if (recoveredAddress !== address) {
 ```
 
 **Smart Contract Security:**
+
 - OpenZeppelin libraries (audited)
 - Access control (onlyOwner, onlyAdmin)
 - Reentrancy guards
@@ -1456,11 +1520,13 @@ if (recoveredAddress !== address) {
 ### 10.5 Anti-Fraud Measures
 
 **Resume Fraud Detection:**
+
 - Text hash comparison (detect duplicate resumes)
 - Skill consistency checking (resume vs claimed skills)
 - Experience validation (realistic timelines)
 
 **Assessment Anti-Cheating:**
+
 - Full-screen enforcement
 - Tab-switch detection (max 3 warnings)
 - Copy-paste disabled
@@ -1470,6 +1536,7 @@ if (recoveredAddress !== address) {
 - Answer shuffling
 
 **Application Spam Prevention:**
+
 - Rate limit: Max 10 applications per day
 - Duplicate application blocking
 - Profile completion check (min 60%).
@@ -1481,6 +1548,7 @@ if (recoveredAddress !== address) {
 ### 11.1 User Management
 
 **Features:**
+
 - View all users (candidates + recruiters)
 - Search/filter by role, status, verification
 - Suspend/activate accounts
@@ -1488,6 +1556,7 @@ if (recoveredAddress !== address) {
 - Manually verify profiles
 
 **API Endpoints (Future):**
+
 ```
 GET    /api/admin/users            - List all users
 GET    /api/admin/users/:id        - Get user details
@@ -1499,6 +1568,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 11.2 Job Moderation
 
 **Features:**
+
 - Review flagged jobs
 - Approve/reject job postings
 - Edit job details
@@ -1507,6 +1577,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 11.3 Certificate Validation
 
 **Features:**
+
 - View all certificates
 - Verify NFT minting status
 - Revoke fraudulent certificates
@@ -1515,6 +1586,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 11.4 DAO Governance
 
 **Features:**
+
 - Create admin proposals
 - Force-execute urgent proposals
 - Change proposal status
@@ -1523,6 +1595,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 11.5 Analytics Dashboard
 
 **Metrics:**
+
 - Total users (candidates vs recruiters)
 - Active jobs vs closed
 - Application conversion rate
@@ -1531,6 +1604,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 - Revenue tracking
 
 **Visualizations:**
+
 - User growth chart
 - Job posting trends
 - Skill demand heatmap
@@ -1544,6 +1618,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 12.1 Freemium Model
 
 **Free Tier (Candidates):**
+
 - ✅ Profile creation
 - ✅ Resume upload
 - ✅ 3 free skill assessments/month
@@ -1552,6 +1627,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 - ✅ 10 job applications/month
 
 **Premium Tier (Candidates) - $19/month:**
+
 - ✅ Unlimited skill assessments
 - ✅ Unlimited job applications
 - ✅ Priority in recruiter search
@@ -1562,12 +1638,14 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 12.2 Recruiter Pricing
 
 **Basic Plan - $99/month:**
+
 - 5 job postings
 - Access to verified candidates
 - Basic candidate filtering
 - 50 resume downloads/month
 
 **Pro Plan - $299/month:**
+
 - Unlimited job postings
 - Advanced AI candidate ranking
 - Unlimited resume downloads
@@ -1576,6 +1654,7 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 - Priority support
 
 **Enterprise Plan - Custom:**
+
 - Dedicated account manager
 - API access
 - Custom integrations
@@ -1586,26 +1665,31 @@ DELETE /api/admin/users/:id        - Delete user (soft)
 ### 12.3 Pay-Per-Action
 
 **Job Posting:**
+
 - Single job post: $49
 - Featured listing: $99
 - Urgent hiring badge: $29
 
 **Assessments:**
+
 - Custom assessment creation: $199
 - Bulk assessment credits: $0.50/test
 
 **Candidate Unlocks:**
+
 - Contact info reveal: $5/candidate
 - Resume download: $2/resume
 
 ### 12.4 Blockchain Services
 
 **Certificate Minting:**
+
 - Platform-issued (included free)
 - Third-party verification: $10/certificate
 - Bulk minting: $5/certificate (min 50)
 
 **DAO Participation:**
+
 - Voting credits (free for token holders)
 - Proposal creation fee: 10 tokens
 - Featured proposals: 50 tokens
@@ -1638,30 +1722,35 @@ Transaction Fees:
 ### 13.1 Advanced Features
 
 **1. AI Interview Bot**
+
 - Voice-based technical interviews
 - Real-time code evaluation
 - Behavioral analysis
 - Auto-generate interview reports
 
 **2. Decentralized Identity (DID)**
+
 - Self-sovereign identity on blockchain
 - Portable credentials across platforms
 - Zero-knowledge proof verification
 - Privacy-preserving hiring
 
 **3. On-Chain Resume (IPFS)**
+
 - Store resume hash on blockchain
 - Content-addressed storage
 - Version control
 - Encrypted private data
 
 **4. Multi-Chain Support**
+
 - Ethereum mainnet
 - Polygon (current)
 - Arbitrum (Layer 2)
 - Solana (high throughput)
 
 **5. NFT Marketplace**
+
 - Trade skill certificates
 - Reputation tokens
 - Achievement badges
@@ -1670,30 +1759,35 @@ Transaction Fees:
 ### 13.2 Platform Enhancements
 
 **1. Video Assessments**
+
 - Record video answers
 - AI-powered facial analysis
 - Speech-to-text evaluation
 - Confidence scoring
 
 **2. Live Coding Tests**
+
 - Real-time code editor
 - Language support (JS, Python, Java, etc.)
 - Test case execution
 - Plagiarism detection
 
 **3. Gamification**
+
 - Skill badges and levels
 - Leaderboards
 - Daily challenges
 - Referral rewards
 
 **4. Social Features**
+
 - Candidate networking
 - Recruiter community
 - Knowledge sharing
 - Mentorship program
 
 **5. Mobile App**
+
 - React Native app
 - Push notifications
 - Job alerts
@@ -1702,24 +1796,28 @@ Transaction Fees:
 ### 13.3 Business Expansion
 
 **1. International Markets**
+
 - Multi-language support
 - Regional compliance (GDPR, CCPA)
 - Local payment gateways
 - Currency conversion
 
 **2. Industry Verticals**
+
 - Healthcare hiring
 - Finance sector
 - Technology focus
 - Remote-first jobs
 
 **3. B2B Services**
+
 - Recruitment agency portal
 - College placement cell
 - Government job portal
 - Freelancer marketplace
 
 **4. Educational Integration**
+
 - University partnerships
 - Skill certification programs
 - Online courses + certificates
@@ -1728,24 +1826,28 @@ Transaction Fees:
 ### 13.4 Technical Roadmap
 
 **Q1 2026:**
+
 - ✅ Core platform launch
 - ✅ AI resume parsing
 - ✅ Skill assessments
 - ✅ Blockchain certificates
 
 **Q2 2026:**
+
 - ⏳ Mobile app (iOS + Android)
 - ⏳ Advanced analytics
 - ⏳ Video interviews
 - ⏳ Live coding tests
 
 **Q3 2026:**
+
 - 📋 DAO governance activation
 - 📋 NFT marketplace
 - 📋 AI interview bot
 - 📋 Multi-chain support
 
 **Q4 2026:**
+
 - 📋 Decentralized identity
 - 📋 On-chain resume
 - 📋 International expansion
@@ -1758,6 +1860,7 @@ Transaction Fees:
 ### A. API Response Formats
 
 **Success Response:**
+
 ```json
 {
   "ok": true,
@@ -1767,6 +1870,7 @@ Transaction Fees:
 ```
 
 **Error Response:**
+
 ```json
 {
   "ok": false,
@@ -1855,16 +1959,19 @@ Storage (Cloudinary):
 ### D. Contact & Support
 
 **Development Team:**
+
 - Lead Developer: [MD WASI AHMAD]
 - Blockchain Engineer: [MD WASI AHMAD]
 - AI/ML Engineer: [MD WASI AHMAD]
 
 **Documentation:**
+
 - GitHub: https://github.com/wasiahamad/MERN_STACK_PROJECTS/tree/main/skillforge-pro-main
 - Docs: docs.skillforge.com
 - API Reference: api.skillforge.com/docs
 
 **Support:**
+
 - Email: support@skillforge.com
 - Discord: discord.gg/skillforge
 - Twitter: @skillforge
@@ -1873,6 +1980,6 @@ Storage (Cloudinary):
 
 **Document Version:** 1.0  
 **Last Updated:** February 11, 2026  
-**Next Review:** Q2 2026  
+**Next Review:** Q2 2026
 
 © 2026 SkillForge Pro. All rights reserved.
