@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { useAuth } from "@/context/AuthContext";
 
 const steps = [
   {
@@ -26,6 +28,12 @@ const steps = [
 ];
 
 export function HowItWorksSection() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  const handleStartJourney = () => {
+    navigate("/auth");
+  };
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Background gradient */}
@@ -77,18 +85,20 @@ export function HowItWorksSection() {
           ))}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="text-center"
-        >
-          <GradientButton size="lg" className="group">
-            Start Your Journey
-            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-          </GradientButton>
-        </motion.div>
+        {!isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="text-center"
+          >
+            <GradientButton size="lg" className="group" onClick={handleStartJourney}>
+              Start Your Journey
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </GradientButton>
+          </motion.div>
+        )}
       </div>
     </section>
   );

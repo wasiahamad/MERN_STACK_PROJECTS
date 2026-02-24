@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, User, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { HoverCard } from "@/components/ui/animated-container";
+import { useAuth } from "@/context/AuthContext";
 
 const roles = [
   {
@@ -35,6 +36,12 @@ const roles = [
 ];
 
 export function RoleSelectionSection() {
+  const { isAuthenticated } = useAuth();
+
+  // Hide this section if user is already logged in
+  if (isAuthenticated) {
+    return null;
+  }
   return (
     <section className="py-24 relative">
       <div className="container mx-auto px-4">

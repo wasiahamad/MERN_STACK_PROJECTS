@@ -1,9 +1,25 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Shield, Cpu, Users, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { FloatingElement } from "@/components/ui/animated-container";
+import { useAuth } from "@/context/AuthContext";
 
 export function HeroSection() {
+  const navigate = useNavigate();
+  const { isAuthenticated, isRecruiter } = useAuth();
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate(isRecruiter ? "/recruiter/dashboard" : "/dashboard");
+    } else {
+      navigate("/auth");
+    }
+  };
+
+  const handleExploreJobs = () => {
+    navigate("/jobs");
+  };
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Elements */}
@@ -72,20 +88,22 @@ export function HeroSection() {
             and participate in DAO governance. Welcome to ChainHire.
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
-            <GradientButton size="lg" className="group">
-              Get Started
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </GradientButton>
-            <GradientButton variant="outline" size="lg">
-              Explore Jobs
-            </GradientButton>
-          </motion.div>
+          {!isAuthenticated && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+            >
+              <GradientButton size="lg" className="group" onClick={handleGetStarted}>
+                Get Started
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </GradientButton>
+              <GradientButton variant="outline" size="lg" onClick={handleExploreJobs}>
+                Explore Jobs
+              </GradientButton>
+            </motion.div>
+          )}
 
           {/* Stats */}
           <motion.div

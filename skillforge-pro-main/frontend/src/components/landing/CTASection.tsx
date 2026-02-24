@@ -1,8 +1,25 @@
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { useAuth } from "@/context/AuthContext";
 
 export function CTASection() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  // Hide this section if user is already logged in
+  if (isAuthenticated) {
+    return null;
+  }
+
+  const handleCreateAccount = () => {
+    navigate("/auth");
+  };
+
+  const handleLearnMore = () => {
+    navigate("/about");
+  };
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Background Elements */}
@@ -49,6 +66,7 @@ export function CTASection() {
               variant="ghost"
               size="lg"
               className="bg-white text-primary hover:bg-white/90 group"
+              onClick={handleCreateAccount}
             >
               Create Free Account
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -57,6 +75,7 @@ export function CTASection() {
               variant="ghost"
               size="lg"
               className="border-2 border-white text-white hover:bg-white/10"
+              onClick={handleLearnMore}
             >
               Learn More
             </GradientButton>
