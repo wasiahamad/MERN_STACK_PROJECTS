@@ -91,7 +91,7 @@ export function Footer() {
             © {new Date().getFullYear()} ChainHire. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
-            <a href="https://portfolio1-client-v6cv.onrender.com/">Developed by MD Wasi Ahmad</a>
+            <a href="https://portfolio1-client-v6cv.onrender.com/" target="_blank" rel="noopener noreferrer">Developed by MD Wasi Ahmad</a>
           </p>
         </div>
       </div>
