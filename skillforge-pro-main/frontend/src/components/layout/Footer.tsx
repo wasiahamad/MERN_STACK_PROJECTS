@@ -91,7 +91,7 @@ export function Footer() {
             © {new Date().getFullYear()} ChainHire. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
-            Built with ❤️ on the blockchain
+            <a href="https://portfolio1-client-v6cv.onrender.com/">Developed by MD Wasi Ahmad</a>
           </p>
         </div>
       </div>
