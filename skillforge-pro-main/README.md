@@ -3,7 +3,7 @@
 **AI + Blockchain Powered Job Portal Platform**
 
 Version: 1.0  
-Last Updated: February 11, 2026
+Last Updated: February 26, 2026
 
 ---
 
