@@ -27,7 +27,7 @@ const socialLinks = [
   { icon: Twitter, href: "https://x.com/mdwasiahme46755", label: "Twitter" },
   { icon: Github, href: "https://github.com/wasiahamad", label: "GitHub" },
   { icon: Linkedin, href: "https://www.linkedin.com/in/md-wasi-ahmad-56a8542b3", label: "LinkedIn" },
-  { icon: Mail, href: "mailto:hello@chainhire.com", label: "Email" },
+  { icon: Mail, href: "mdwasia98@gmail.com", label: "Email" },
 ];
 
 export function Footer() {
