@@ -24,8 +24,8 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
-  { icon: Github, href: "https://github.com", label: "GitHub" },
+  { icon: Twitter, href: "https://x.com/mdwasiahme46755", label: "Twitter" },
+  { icon: Github, href: "https://github.com/wasiahamad", label: "GitHub" },
   { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
   { icon: Mail, href: "mailto:hello@chainhire.com", label: "Email" },
 ];
