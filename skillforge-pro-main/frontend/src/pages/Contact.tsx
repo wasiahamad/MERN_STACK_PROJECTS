@@ -94,7 +94,7 @@ const Contact = () => {
                     <Mail className="h-5 w-5 text-primary mt-0.5" />
                     <div>
                       <div className="font-medium">Email</div>
-                      <div className="text-muted-foreground">hello@chainhire.com</div>
+                      <div className="text-muted-foreground">mdwasia98@gmail.com</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
