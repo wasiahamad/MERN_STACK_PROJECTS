@@ -45,7 +45,7 @@ const Docs = () => {
               <Code2 className="h-6 w-6 text-primary" />
               <h2 className="font-display text-lg font-semibold">Frontend → Backend</h2>
               <p className="text-sm text-muted-foreground">
-                See `FRONTEND_BACKEND_API_DOCUMENTATION.md` in the repo for the current contract
+                See <a href="/frontend/FRONTEND_BACKEND_API_DOCUMENTATION.md" className="text-primary hover:underline">FRONTEND_BACKEND_API_DOCUMENTATION.md</a> for detailed documentation of the API endpoints and data contracts used for communication
                 between UI and API.
               </p>
             </GlassCard>
