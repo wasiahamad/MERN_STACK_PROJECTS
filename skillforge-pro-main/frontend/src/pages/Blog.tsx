@@ -27,6 +27,13 @@ const placeholderPosts = [
     readTime: "7 min read",
     date: "Coming soon",
   },
+  {
+    id: "4",
+    title: "How blockchain can enable decentralized hiring",
+    category: "Web Development",
+    readTime: "10 min read",
+    date: "Coming soon",
+  },
 ];
 
 const Blog = () => {
