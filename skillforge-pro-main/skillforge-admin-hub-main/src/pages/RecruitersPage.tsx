@@ -1,22 +1,42 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Eye, Building2, ChevronLeft, ChevronRight, MapPin, Phone, Mail, Calendar, Globe, Users as UsersIcon, Briefcase } from "lucide-react";
-import { recruitersTableData } from "@/lib/mockData";
+import { Search, Eye, Building2, ChevronLeft, ChevronRight, MapPin, Phone, Mail, Calendar, Globe, Users as UsersIcon, Briefcase, AlertCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { SkeletonTable } from "@/components/dashboard/SkeletonCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { adminApi, type Recruiter } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function RecruitersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedRecruiter, setSelectedRecruiter] = useState<typeof recruitersTableData[0] | null>(null);
+  const [selectedRecruiter, setSelectedRecruiter] = useState<Recruiter | null>(null);
+  const [recruiters, setRecruiters] = useState<Recruiter[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(t);
+    fetchRecruiters();
   }, []);
 
-  const filtered = recruitersTableData.filter((r) => r.company.toLowerCase().includes(search.toLowerCase()));
+  const fetchRecruiters = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.getRecruiters();
+      setRecruiters(data.recruiters);
+    } catch (err) {
+      console.error("Failed to fetch recruiters:", err);
+      setError(err instanceof Error ? err.message : "Failed to load recruiters");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = recruiters.filter((r) => 
+    r.companyName.toLowerCase().includes(search.toLowerCase()) ||
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.email.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <DashboardLayout>
@@ -32,6 +52,14 @@ export default function RecruitersPage() {
         </div>
       </motion.div>
 
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Recruiter Detail Dialog */}
       <Dialog open={!!selectedRecruiter} onOpenChange={() => setSelectedRecruiter(null)}>
         <DialogContent className="max-w-md">
@@ -42,21 +70,21 @@ export default function RecruitersPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-                  {selectedRecruiter.company.charAt(0)}
+                  {selectedRecruiter.companyName.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">{selectedRecruiter.company}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{selectedRecruiter.companyName}</h3>
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${selectedRecruiter.status === "active" ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"}`}>{selectedRecruiter.status}</span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">{selectedRecruiter.description}</p>
+              <p className="text-sm text-muted-foreground">{selectedRecruiter.about || "No description available"}</p>
               <div className="space-y-2.5 text-sm">
-                <div className="flex items-center gap-3 text-muted-foreground"><UsersIcon className="h-4 w-4" />Contact: {selectedRecruiter.contactName}</div>
+                <div className="flex items-center gap-3 text-muted-foreground"><UsersIcon className="h-4 w-4" />Contact: {selectedRecruiter.name}</div>
                 <div className="flex items-center gap-3 text-muted-foreground"><Mail className="h-4 w-4" />{selectedRecruiter.email}</div>
                 <div className="flex items-center gap-3 text-muted-foreground"><Phone className="h-4 w-4" />{selectedRecruiter.phone}</div>
                 <div className="flex items-center gap-3 text-muted-foreground"><MapPin className="h-4 w-4" />{selectedRecruiter.location}</div>
                 <div className="flex items-center gap-3 text-muted-foreground"><Globe className="h-4 w-4" />{selectedRecruiter.website}</div>
-                <div className="flex items-center gap-3 text-muted-foreground"><Calendar className="h-4 w-4" />Joined {selectedRecruiter.joinedAt}</div>
+                <div className="flex items-center gap-3 text-muted-foreground"><Calendar className="h-4 w-4" />Joined {new Date(selectedRecruiter.joinedAt).toLocaleDateString()}</div>
               </div>
               <div className="grid grid-cols-3 gap-3 border-t border-border pt-3">
                 <div className="rounded-lg bg-muted/50 p-3 text-center">
@@ -64,11 +92,11 @@ export default function RecruitersPage() {
                   <p className="text-xs text-muted-foreground">Active Jobs</p>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3 text-center">
-                  <p className="text-lg font-bold text-accent">{selectedRecruiter.hires}</p>
+                  <p className="text-lg font-bold text-accent">{selectedRecruiter.totalHires}</p>
                   <p className="text-xs text-muted-foreground">Total Hires</p>
                 </div>
                 <div className="rounded-lg bg-muted/50 p-3 text-center">
-                  <p className="text-lg font-bold text-primary">{selectedRecruiter.employees}</p>
+                  <p className="text-lg font-bold text-primary">{selectedRecruiter.size}</p>
                   <p className="text-xs text-muted-foreground">Employees</p>
                 </div>
               </div>
@@ -104,9 +132,9 @@ export default function RecruitersPage() {
               <tbody>
                 {filtered.map((r) => (
                   <motion.tr key={r.id} whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)" }} className="border-b border-border transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{r.company}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{r.companyName}</td>
                     <td className="px-4 py-3 text-foreground">{r.activeJobs}</td>
-                    <td className="px-4 py-3 text-foreground">{r.hires}</td>
+                    <td className="px-4 py-3 text-foreground">{r.totalHires}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${r.status === "active" ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"}`}>{r.status}</span>
                     </td>
@@ -115,6 +143,13 @@ export default function RecruitersPage() {
                     </td>
                   </motion.tr>
                 ))}
+                {filtered.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      {search ? "No recruiters found" : "No recruiters yet"}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
