@@ -22,10 +22,10 @@ export async function getAllRecruiters(req, res) {
 
     // Get job statistics for each recruiter
     const jobStats = await Job.aggregate([
-      { $match: { createdBy: { $in: recruiterIds } } },
+      { $match: { recruiterId: { $in: recruiterIds } } },
       {
         $group: {
-          _id: "$createdBy",
+          _id: "$recruiterId",
           activeJobs: {
             $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] },
           },
@@ -35,21 +35,12 @@ export async function getAllRecruiters(req, res) {
     ]);
     const jobStatsMap = new Map(jobStats.map((s) => [s._id.toString(), s]));
 
-    // Get hire statistics (accepted applications)
+    // Get hire statistics (offered applications = successful hires)
     const hireStats = await Application.aggregate([
-      {
-        $lookup: {
-          from: "jobs",
-          localField: "jobId",
-          foreignField: "_id",
-          as: "job",
-        },
-      },
-      { $unwind: "$job" },
-      { $match: { status: "accepted" } },
+      { $match: { recruiterId: { $in: recruiterIds }, status: "offered" } },
       {
         $group: {
-          _id: "$job.createdBy",
+          _id: "$recruiterId",
           totalHires: { $sum: 1 },
         },
       },
