@@ -19,6 +19,7 @@ import notificationsRoutes from "./routes/notifications.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import assessmentsRoutes from "./routes/assessments.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 export const app = express();
 
@@ -63,6 +64,7 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/assessments", assessmentsRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
