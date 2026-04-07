@@ -6,7 +6,16 @@ import { connectDb, disconnectDb } from "./config/db.js";
 const server = http.createServer(app);
 
 async function bootstrap() {
-  await connectDb(env.MONGO_URI);
+  try {
+    await connectDb(env.MONGO_URI);
+  } catch (err) {
+    if (env.NODE_ENV === "production") {
+      throw err;
+    }
+    // In local dev, keep API booted even if Atlas DNS/network is temporarily down.
+    // eslint-disable-next-line no-console
+    console.warn("MongoDB connection failed in dev mode, continuing without DB:", err.message);
+  }
   server.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`API listening on :${env.PORT}`);

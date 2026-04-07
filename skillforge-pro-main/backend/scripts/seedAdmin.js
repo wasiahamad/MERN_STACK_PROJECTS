@@ -36,7 +36,7 @@ async function seedAdmin() {
     console.log("🔑 Password:", adminPassword);
     console.log("=================================\n");
     console.log("⚠ IMPORTANT: Change the password after first login!");
-    
+
     process.exit(0);
   } catch (error) {
     console.error("✗ Error seeding admin:", error.message);
